@@ -16,7 +16,7 @@ Alternatively, you're free to audit and compile the code yourself:
 
 ## Usage
 
-* The application's main functionality is done via a local webpage; the webpage is opened in your default browser on startup.
+* The application is accessible via a local webpage; the webpage is opened in your default browser on startup.
 * The application exposes a system tray icon that can be used to re-open the local webpage or to quit the application.
 
 ### Account Switcher
