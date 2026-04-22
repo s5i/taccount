@@ -16,6 +16,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	logFile := filepath.Join(os.Getenv("Temp"), "tassist.log")
+	if f, err := os.Create(logFile); err == nil {
+		log.SetOutput(f)
+		defer f.Close()
+	}
+
 	srv, err := server.New(storagePath())
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)

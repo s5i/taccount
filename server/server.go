@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -59,6 +60,8 @@ func (s *Server) Run(ctx context.Context) error {
 	s.ln = ln
 	defer s.ln.Close()
 
+	log.Printf("Listening on %s", s.ln.Addr())
+
 	close(s.ready)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -110,7 +113,7 @@ func (s *Server) handleAccList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var out []entryJSON
+	out := []entryJSON{} // JSON nil != empty slice.
 	for _, row := range rows {
 		out = append(out, entryJSON{ID: row.ID, Name: row.Name})
 	}

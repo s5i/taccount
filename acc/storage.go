@@ -4,7 +4,9 @@ package acc
 
 import (
 	"encoding/base64"
+	"errors"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,7 +17,9 @@ type Storage struct {
 }
 
 func New(path string) (*Storage, error) {
-	s := &Storage{path: path}
+	s := &Storage{
+		path: path,
+	}
 
 	if err := s.load(); err != nil {
 		return nil, err
@@ -91,6 +95,9 @@ func (y *Storage) RenameRow(id, newName string) error {
 func (y *Storage) load() error {
 	data, err := os.ReadFile(y.path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
 		return err
 	}
 
@@ -104,6 +111,10 @@ func (y *Storage) load() error {
 func (y *Storage) save(entries []*row) error {
 	data, err := yaml.Marshal(entries)
 	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(y.path), 0755); err != nil {
 		return err
 	}
 
