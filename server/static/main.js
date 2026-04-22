@@ -137,11 +137,18 @@ async function refreshExpStats() {
     if (!r.ok) return;
     const data = await r.json();
 
-    document.getElementById('exp-current').textContent = Number.isInteger(data.current) ? data.current : '-';
-    document.getElementById('exp-1m').textContent = Number.isInteger(data.eph60) ? data.eph60 : '-';
-    document.getElementById('exp-10m').textContent = Number.isInteger(data.eph600) ? data.eph600 : '-';
-    document.getElementById('exp-30m').textContent = Number.isInteger(data.eph1800) ? data.eph1800 : '-';
-    document.getElementById('exp-1h').textContent = Number.isInteger(data.eph3600) ? data.eph3600 : '-';
+    const fmt = (x) => {
+        if (!Number.isInteger(x)) {
+            return '-';
+        }
+        return x.toLocaleString('en-US');
+    };
+
+    document.getElementById('exp-current').textContent = fmt(data.current);
+    document.getElementById('exp-1m').textContent = fmt(data.eph60);
+    document.getElementById('exp-10m').textContent = fmt(data.eph600);
+    document.getElementById('exp-30m').textContent = fmt(data.eph1800);
+    document.getElementById('exp-1h').textContent = fmt(data.eph3600);
 }
 
 document.getElementById('exp-reset').addEventListener('click', async () => {
