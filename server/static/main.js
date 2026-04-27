@@ -172,3 +172,7 @@ refreshExpStats().then(() => {
 });
 
 setInterval(refreshExpStats, 1000);
+
+setInterval(() => {
+    fetch('/api/healthz').catch(() => { window.close(); });
+}, 1000);

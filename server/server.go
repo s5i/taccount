@@ -38,6 +38,7 @@ func New(storagePath string) (*Server, error) {
 	mux.HandleFunc("/", s.handleIndexHTML)
 	mux.HandleFunc("/style.css", s.handleStyleCSS)
 	mux.HandleFunc("/main.js", s.handleMainJS)
+	mux.HandleFunc("/api/healthz", s.handleHealthz)
 	mux.HandleFunc("/api/accounts/list", s.handleAccList)
 	mux.HandleFunc("/api/accounts/rename", s.handleAccRename)
 	mux.HandleFunc("/api/accounts/delete", s.handleAccDelete)
@@ -280,6 +281,11 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ret)
+}
+
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
 }
 
 type entryJSON struct {
