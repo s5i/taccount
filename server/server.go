@@ -18,7 +18,7 @@ import (
 	_ "embed"
 )
 
-func New(storagePath string) (*Server, error) {
+func New(storagePath string, version string) (*Server, error) {
 	st, err := acc.New(storagePath)
 	if err != nil {
 		return nil, err
@@ -30,9 +30,10 @@ func New(storagePath string) (*Server, error) {
 	}
 
 	s := &Server{
-		acc:   st,
-		exp:   expCache,
-		ready: make(chan bool),
+		acc:     st,
+		exp:     expCache,
+		version: version,
+		ready:   make(chan bool),
 	}
 
 	mux := http.NewServeMux()
@@ -41,6 +42,7 @@ func New(storagePath string) (*Server, error) {
 	mux.HandleFunc("/main.js", s.handleMainJS)
 	mux.HandleFunc("/favicon.ico", s.handleFaviconIco)
 	mux.HandleFunc("/api/healthz", s.handleHealthz)
+	mux.HandleFunc("/api/version", s.handleVersion)
 	mux.HandleFunc("/api/accounts/list", s.handleAccList)
 	mux.HandleFunc("/api/accounts/rename", s.handleAccRename)
 	mux.HandleFunc("/api/accounts/delete", s.handleAccDelete)
@@ -89,11 +91,12 @@ func (s *Server) Addr() string {
 }
 
 type Server struct {
-	acc   *acc.Storage
-	exp   *exp.Cache
-	mux   *http.ServeMux
-	ln    net.Listener
-	ready chan bool
+	acc     *acc.Storage
+	exp     *exp.Cache
+	mux     *http.ServeMux
+	ln      net.Listener
+	ready   chan bool
+	version string
 }
 
 func (s *Server) handleIndexHTML(w http.ResponseWriter, r *http.Request) {
@@ -293,6 +296,13 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
+}
+
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Version string `json:"version"`
+	}{Version: s.version})
 }
 
 type entryJSON struct {

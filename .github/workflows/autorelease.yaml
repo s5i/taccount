@@ -23,7 +23,7 @@ jobs:
         run: go get -u github.com/s5i/tassist
 
       - name: Build
-        run: GOOS=windows GOARCH=amd64 go build -ldflags -H=windowsgui .
+        run: GOOS=windows GOARCH=amd64 TAG= go build -ldflags "-H=windowsgui -X 'github.com/s5i/goutil/version.External=${{ github.ref_name }}'" .
 
       - name: Create Release
         id: create_release

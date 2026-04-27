@@ -127,12 +127,15 @@ h1 {
     font-size: .85rem;
     opacity: 0;
     transition: opacity .3s;
-    pointer-events: none;
     z-index: 10;
 }
 
 .toast.show {
     opacity: 1;
+}
+
+.link {
+    color: #e0e0e0;
 }
 
 .exp-val-grid {

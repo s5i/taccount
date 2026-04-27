@@ -2,11 +2,16 @@ const listEl = document.getElementById('list');
 const toastEl = document.getElementById('toast');
 let toastTimer;
 
-function toast(msg) {
-    toastEl.textContent = msg;
+function toast(msg, timeout) {
+    toastEl.innerHTML = msg;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2000);
+    if (!timeout) {
+        timeout = 2000;
+    }
+    if (timeout > 0) {
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), timeout);
+    }
 }
 
 async function hdlRenameStart(ev) {
@@ -176,3 +181,21 @@ setInterval(refreshExpStats, 1000);
 setInterval(() => {
     fetch('/api/healthz').catch(() => { window.close(); });
 }, 1000);
+
+try {
+    fetch('/api/version').then(async (r) => {
+        if (!r.ok) return;
+        const json = await r.json()
+        const version = json.version;
+        document.getElementById('title').innerText = `Tibiantis Assistant ${version}`;
+        if (!version.match(/v\d\.\d\.\d/)) return;
+        fetch('https://api.github.com/repos/s5i/tassist/releases/latest').then(async (r) => {
+            if (!r.ok) return;
+            const json = await r.json()
+            const latest = json.tag_name;
+            if (version == latest) return;
+            const url = json.assets[0].browser_download_url;
+            toast(`New version available! Download <a href="${url}" class="link">here</a>.`, -1);
+        });
+    })
+} catch { };

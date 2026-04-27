@@ -11,6 +11,8 @@ import (
 
 	"github.com/s5i/tassist/server"
 	"github.com/s5i/tassist/tray"
+
+	"github.com/s5i/goutil/version"
 )
 
 func main() {
@@ -23,7 +25,7 @@ func main() {
 		defer f.Close()
 	}
 
-	srv, err := server.New(storagePath())
+	srv, err := server.New(storagePath(), version.Get())
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
