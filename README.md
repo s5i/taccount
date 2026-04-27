@@ -32,12 +32,16 @@ Alternatively, you're free to audit and compile the code yourself:
 ### Experience Tracker
 
 * You need to have the Skills tab open with the "Experience" line being visible.
-* If exp detection stops working, try re-focusing the Tibiantis client window (eg. by alt-tabbing into another window and back).
-* "Total" displays the current experience.
-* "Exp/h - last X" displays the experience per hour as measured over the last X.
-* "Reset" clears all historical samples.
+* "Level" and "Experience" display the current level and experience, respectively.
+* "Exp/h" displays the experience per hour since the session started.
+* "Remaining" displays the experience needed to reach the next level.
+* "Start"/"Stop": controls whether the experience tracking session is active.
+* "Pause"/"Unpause" controls whether the experience tracking session is paused; while paused, neither experience changes nor time elapsed is counted towards exp/h.
+* "Reset" resets the experience tracking session.
+* Known issues:
+  * If exp detection is not working despite an active session, try re-focusing the Tibiantis client window (eg. by alt-tabbing into another window and back).
 * Technical details:
-  * TAssist takes a screenshot of a window titled "Tibiantis" every 5 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
+  * TAssist takes a screenshot of a window titled "Tibiantis" every 2 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
 
 ### Screenshots
 
