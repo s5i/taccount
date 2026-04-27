@@ -46,3 +46,9 @@ Alternatively, you're free to audit and compile the code yourself:
 ### Screenshots
 
 ![Local webpage view](https://raw.github.com/s5i/tassist/main/example.png)
+
+## Issues?
+
+* Contact: shyymzinhu @ Discord.
+* UI issues: attach DevTools console output (F12 on most browsers).
+* Crash: attach the contents of `%Temp%\tassist.log`.
