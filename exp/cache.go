@@ -169,16 +169,20 @@ func (c *Cache) maybeGrabSample() {
 		c.startSample = c.lastSample
 	}
 
-	if c.lastSample.exp < c.nextLevelExp {
-		return
+	if c.lastSample.exp < c.startSample.exp {
+		c.reset()
+		c.lastSample = &sample{exp, time.Now()}
+		c.startSample = c.lastSample
 	}
 
-	for x := c.level + 1; ; x++ {
-		expNeeded := (x*x*x - 6*x*x + 17*x - 12) * 50 / 3
-		if expNeeded > c.lastSample.exp {
-			c.level = x - 1
-			c.nextLevelExp = expNeeded
-			break
+	if c.lastSample.exp >= c.nextLevelExp {
+		for x := c.level + 1; ; x++ {
+			expNeeded := (x*x*x - 6*x*x + 17*x - 12) * 50 / 3
+			if expNeeded > c.lastSample.exp {
+				c.level = x - 1
+				c.nextLevelExp = expNeeded
+				break
+			}
 		}
 	}
 }
