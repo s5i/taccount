@@ -5,11 +5,9 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/s5i/tassist/acc"
@@ -46,6 +44,10 @@ func New(storagePath string) (*Server, error) {
 	mux.HandleFunc("/api/accounts/load", s.handleAccLoad)
 	mux.HandleFunc("/api/accounts/store", s.handleAccStore)
 	mux.HandleFunc("/api/exp/stats", s.handleExpStats)
+	mux.HandleFunc("/api/exp/start", s.handleExpStart)
+	mux.HandleFunc("/api/exp/stop", s.handleExpStop)
+	mux.HandleFunc("/api/exp/pause", s.handleExpPause)
+	mux.HandleFunc("/api/exp/unpause", s.handleExpUnpause)
 	mux.HandleFunc("/api/exp/reset", s.handleExpReset)
 	s.mux = mux
 
@@ -235,35 +237,49 @@ func (s *Server) handleExpReset(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{}"))
 }
 
-func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Windows []int `json:"windows"`
-	}
-	if r.Method == http.MethodPost {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-	} else {
-		req.Windows = []int{60, 600, 1800, 3600}
-	}
-
-	stats := map[string]int{}
-	if current, ok := s.exp.Current(); ok {
-		stats["current"] = current
-	}
-
-	for _, w := range req.Windows {
-		window := time.Duration(w) * time.Second
-		delta, ok := s.exp.Delta(window)
-		if !ok {
-			continue
-		}
-		stats[fmt.Sprintf("eph%d", w)] = int(float64(time.Hour) / float64(window) * float64(delta))
-	}
-
+func (s *Server) handleExpStart(w http.ResponseWriter, r *http.Request) {
+	s.exp.Start()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	w.Write([]byte("{}"))
+}
+
+func (s *Server) handleExpStop(w http.ResponseWriter, r *http.Request) {
+	s.exp.Stop()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
+}
+
+func (s *Server) handleExpPause(w http.ResponseWriter, r *http.Request) {
+	s.exp.Pause()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
+}
+
+func (s *Server) handleExpUnpause(w http.ResponseWriter, r *http.Request) {
+	s.exp.Unpause()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
+}
+
+func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
+	stats := s.exp.Stats()
+	ret := struct {
+		LevelCurrent int  `json:"level_current,omitempty"`
+		ExpCurrent   int  `json:"exp_current,omitempty"`
+		ExpNextLevel int  `json:"exp_next_level,omitempty"`
+		ExpPerHour   int  `json:"exp_per_hour,omitempty"`
+		Running      bool `json:"running"`
+		Paused       bool `json:"paused"`
+	}{
+		LevelCurrent: stats.LevelCurrent,
+		ExpCurrent:   stats.ExpCurrent,
+		ExpNextLevel: stats.ExpRemaining,
+		ExpPerHour:   stats.ExpPerHour,
+		Running:      stats.Running,
+		Paused:       stats.Paused,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ret)
 }
 
 type entryJSON struct {

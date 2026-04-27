@@ -133,7 +133,7 @@ async function reload() {
 reload();
 
 async function refreshExpStats() {
-    const r = await fetch('/api/exp/stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ windows: [60, 600, 1800, 3600] }) });
+    const r = await fetch('/api/exp/stats');
     if (!r.ok) return;
     const data = await r.json();
 
@@ -144,16 +144,31 @@ async function refreshExpStats() {
         return x.toLocaleString('en-US');
     };
 
-    document.getElementById('exp-current').textContent = fmt(data.current);
-    document.getElementById('exp-1m').textContent = fmt(data.eph60);
-    document.getElementById('exp-10m').textContent = fmt(data.eph600);
-    document.getElementById('exp-30m').textContent = fmt(data.eph1800);
-    document.getElementById('exp-1h').textContent = fmt(data.eph3600);
+    document.getElementById('exp-val-level').textContent = fmt(data.level_current);
+    document.getElementById('exp-val-exp').textContent = fmt(data.exp_current);
+    document.getElementById('exp-val-rate').textContent = fmt(data.exp_per_hour);
+    document.getElementById('exp-val-remaining').textContent = fmt(data.exp_next_level);
+
+    document.getElementById('exp-btn-run').textContent = data.running ? 'Stop' : 'Start';
+    document.getElementById('exp-btn-run').dataset.action = data.running ? '/api/exp/stop' : '/api/exp/start';
+    document.getElementById('exp-btn-run').disabled = false;
+
+    document.getElementById('exp-btn-pause').textContent = data.paused ? 'Unpause' : 'Pause';
+    document.getElementById('exp-btn-pause').dataset.action = data.paused ? '/api/exp/unpause' : '/api/exp/pause';
+    document.getElementById('exp-btn-pause').disabled = false;
+
+    document.getElementById('exp-btn-reset').disabled = !data.running;
+    document.getElementById('exp-btn-reset').dataset.action = '/api/exp/reset';
 }
 
-document.getElementById('exp-reset').addEventListener('click', async () => {
-    await fetch('/api/exp/reset');
+refreshExpStats().then(() => {
+    document.querySelectorAll('.btn-exp').forEach((x) => {
+        x.addEventListener('click', async () => {
+            document.querySelectorAll('.btn-exp').forEach((x) => { x.disabled = true; });
+            await fetch(x.dataset.action);
+            refreshExpStats();
+        });
+    });
 });
 
-refreshExpStats();
-setInterval(refreshExpStats, 2000);
+setInterval(refreshExpStats, 1000);

@@ -135,10 +135,17 @@ h1 {
     opacity: 1;
 }
 
-.exp-grid {
+.exp-val-grid {
     margin: 10px 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.exp-btn-grid {
+    margin: 10px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
 }
 

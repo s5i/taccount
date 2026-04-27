@@ -15,32 +15,30 @@
     </div>
     <div class="container">
         <h1>Experience Tracker</h1>
-
-        <div class="exp-cell">
-            <span class="exp-label">Current Exp</span>
-            <span id="exp-current" class="exp-value">-</span>
-        </div>
-
-        <div class="exp-grid">
+        <div class="exp-val-grid">
             <div class="exp-cell">
-                <span class="exp-label">Exp/h - last 1 min</span>
-                <span id="exp-1m" class="exp-value">-</span>
+                <span class="exp-label">Level</span>
+                <span id="exp-val-level" class="exp-value">-</span>
             </div>
             <div class="exp-cell">
-                <span class="exp-label">Exp/h - last 10 min</span>
-                <span id="exp-10m" class="exp-value">-</span>
+                <span class="exp-label">Experience</span>
+                <span id="exp-val-exp" class="exp-value">-</span>
             </div>
             <div class="exp-cell">
-                <span class="exp-label">Exp/h - last 30 min</span>
-                <span id="exp-30m" class="exp-value">-</span>
+                <span class="exp-label">Exp/h</span>
+                <span id="exp-val-rate" class="exp-value">-</span>
             </div>
             <div class="exp-cell">
-                <span class="exp-label">Exp/h - last 1h</span>
-                <span id="exp-1h" class="exp-value">-</span>
+                <span class="exp-label">Remaining</span>
+                <span id="exp-val-remaining" class="exp-value">-</span>
             </div>
         </div>
+        <div class="exp-btn-grid">
+            <button id="exp-btn-run" class="btn btn-exp">Start</button>
+            <button id="exp-btn-pause" class="btn btn-exp">Pause</button>
+            <button id="exp-btn-reset" class="btn btn-exp">Reset</button>
+        </div>
 
-        <button id="exp-reset" class="btn btn-exp">Reset</button>
     </div>
     <script src="/main.js"></script>
 </body>

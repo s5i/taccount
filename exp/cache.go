@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+type CacheStats struct {
+	LevelCurrent int
+	ExpCurrent   int
+	ExpPerHour   int
+	ExpRemaining int
+
+	Running bool
+	Paused  bool
+}
+
 func NewCache() (*Cache, error) {
 	r, err := NewReader()
 	if err != nil {
@@ -17,62 +27,90 @@ func NewCache() (*Cache, error) {
 
 	return &Cache{
 		reader:       r,
-		samples:      map[time.Time]int{},
-		samplePeriod: 5 * time.Second,
-		prunePeriod:  time.Hour,
-		pruneAge:     90 * time.Minute,
+		samplePeriod: 2 * time.Second,
 	}, nil
 }
 
-func (c *Cache) Current() (int, bool) {
+func (c *Cache) Start() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.latestIsFresh() {
-		return 0, false
-	}
-
-	latest, ok := c.samples[c.latest]
-	return latest, ok
+	c.running = true
+	c.paused = false
+	c.reset()
 }
 
-func (c *Cache) Delta(window time.Duration) (int, bool) {
+func (c *Cache) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.latestIsFresh() {
-		return 0, false
+	c.running = false
+	c.paused = false
+	c.reset()
+}
+
+func (c *Cache) Pause() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.running {
+		return
 	}
 
-	prevMinTS := c.latest.Add(-window).Truncate(c.samplePeriod)
-	prevTS := c.latest
-	for t := range c.samples {
-		if !prevMinTS.After(t) && t.Before(prevTS) {
-			prevTS = t
-		}
+	c.paused = true
+	if c.lastSample != nil && c.startSample != nil {
+		c.stashedExp += c.lastSample.exp - c.startSample.exp
+		c.stashedDur += c.lastSample.t.Sub(c.startSample.t)
+	}
+	c.lastSample = nil
+	c.startSample = nil
+}
+
+func (c *Cache) Unpause() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.running {
+		return
 	}
 
-	delta := c.samples[c.latest] - c.samples[prevTS]
-
-	if delta < 0 {
-		return 0, false
-	}
-
-	return delta, true
+	c.paused = false
 }
 
 func (c *Cache) Reset() {
 	c.mu.Lock()
-	c.samples = map[time.Time]int{}
-	c.mu.Unlock()
+	defer c.mu.Unlock()
 
-	c.addSample()
+	c.reset()
+}
+
+func (c *Cache) Stats() CacheStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	s := CacheStats{
+		Running: c.running,
+		Paused:  c.paused,
+	}
+
+	if c.lastSample == nil {
+		return s
+	}
+
+	s.ExpCurrent = c.lastSample.exp
+	s.LevelCurrent = c.level
+	s.ExpRemaining = c.nextLevelExp - c.lastSample.exp
+
+	dExp := c.stashedExp + c.lastSample.exp - c.startSample.exp
+	dDur := c.stashedDur + c.lastSample.t.Sub(c.startSample.t)
+	if dDur > time.Second {
+		s.ExpPerHour = int(float64(dExp) * float64(time.Hour) / float64(dDur))
+	}
+
+	return s
 }
 
 func (c *Cache) Run(ctx context.Context) error {
-	pruneTicker := time.NewTicker(c.prunePeriod)
-	defer pruneTicker.Stop()
-
 	sampleTicker := time.NewTicker(c.samplePeriod)
 	defer sampleTicker.Stop()
 
@@ -80,25 +118,40 @@ func (c *Cache) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-pruneTicker.C:
-			c.prune()
+
 		case <-sampleTicker.C:
-			c.addSample()
+			c.maybeGrabSample()
 		}
 	}
 }
 
 type Cache struct {
-	reader       *Reader
-	samples      map[time.Time]int
-	latest       time.Time
-	mu           sync.Mutex
-	pruneAge     time.Duration
+	reader *Reader
+	mu     sync.Mutex
+
+	startSample  *sample
+	lastSample   *sample
 	samplePeriod time.Duration
-	prunePeriod  time.Duration
+
+	stashedExp int
+	stashedDur time.Duration
+
+	level        int
+	nextLevelExp int
+
+	running bool
+	paused  bool
 }
 
-func (c *Cache) addSample() {
+func (c *Cache) maybeGrabSample() {
+	c.mu.Lock()
+	shouldSample := c.running && !c.paused
+	c.mu.Unlock()
+
+	if !shouldSample {
+		return
+	}
+
 	exp, ok, err := c.reader.Read()
 	if err != nil {
 		log.Printf("exp.Reader.Read() failed: %v", err)
@@ -111,23 +164,35 @@ func (c *Cache) addSample() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := time.Now().Truncate(c.samplePeriod)
-	c.samples[now] = exp
-	c.latest = now
-}
+	c.lastSample = &sample{exp, time.Now()}
+	if c.startSample == nil {
+		c.startSample = c.lastSample
+	}
 
-func (c *Cache) prune() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	if c.lastSample.exp < c.nextLevelExp {
+		return
+	}
 
-	now := time.Now().Truncate(c.samplePeriod)
-	for t := range c.samples {
-		if t.Add(c.pruneAge).Before(now) {
-			delete(c.samples, t)
+	for x := c.level + 1; ; x++ {
+		expNeeded := (x*x*x - 6*x*x + 17*x - 12) * 50 / 3
+		if expNeeded > c.lastSample.exp {
+			c.level = x - 1
+			c.nextLevelExp = expNeeded
+			break
 		}
 	}
 }
 
-func (c *Cache) latestIsFresh() bool {
-	return time.Now().Truncate(c.samplePeriod).Before(c.latest.Add(2 * c.samplePeriod))
+func (c *Cache) reset() {
+	c.lastSample = nil
+	c.startSample = nil
+	c.stashedExp = 0
+	c.stashedDur = 0
+	c.level = 0
+	c.nextLevelExp = 0
+}
+
+type sample struct {
+	exp int
+	t   time.Time
 }
