@@ -9,6 +9,7 @@
 !*.sh
 !*.png
 !*.yaml
+!*.ico
 !*/
 
 !/go.sum

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/s5i/tassist/acc"
+	"github.com/s5i/tassist/assets"
 	"github.com/s5i/tassist/exp"
 	"golang.org/x/sync/errgroup"
 
@@ -38,6 +39,7 @@ func New(storagePath string) (*Server, error) {
 	mux.HandleFunc("/", s.handleIndexHTML)
 	mux.HandleFunc("/style.css", s.handleStyleCSS)
 	mux.HandleFunc("/main.js", s.handleMainJS)
+	mux.HandleFunc("/favicon.ico", s.handleFaviconIco)
 	mux.HandleFunc("/api/healthz", s.handleHealthz)
 	mux.HandleFunc("/api/accounts/list", s.handleAccList)
 	mux.HandleFunc("/api/accounts/rename", s.handleAccRename)
@@ -107,6 +109,11 @@ func (s *Server) handleStyleCSS(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMainJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Write(mainJS)
+}
+
+func (s *Server) handleFaviconIco(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/x-icon")
+	w.Write(assets.Favicon)
 }
 
 func (s *Server) handleAccList(w http.ResponseWriter, r *http.Request) {
