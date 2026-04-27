@@ -20,7 +20,7 @@ func main() {
 	defer cancel()
 
 	logFile := filepath.Join(os.Getenv("Temp"), "tassist.log")
-	if f, err := os.Create(logFile); err == nil {
+	if f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
 		log.SetOutput(io.MultiWriter(f, os.Stderr))
 		defer f.Close()
 	}
