@@ -25,6 +25,12 @@ func main() {
 		defer f.Close()
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Crash detected: %v", r)
+		}
+	}()
+
 	srv, err := server.New(storagePath(), version.Get())
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
