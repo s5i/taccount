@@ -16,8 +16,8 @@ Alternatively, you're free to audit and compile the code yourself:
 
 ## Usage
 
-* The application is accessible via a local webpage; the webpage is opened in your default browser on startup.
-* The application exposes a system tray icon that can be used to re-open the local webpage or to quit the application.
+* Startup: The application opens a webpage in your default browser.
+* Quitting: The application quits automatically 15 seconds after receiving the last ping from the browser.
 
 ### Account Switcher
 

@@ -8,32 +8,31 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os/exec"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/s5i/tassist/acc"
-	"github.com/s5i/tassist/assets"
 	"github.com/s5i/tassist/exp"
 	"golang.org/x/sync/errgroup"
 
 	_ "embed"
 )
 
-func New(storagePath string, version string) (*Server, error) {
+func New(storagePath string, expCache *exp.Cache, version string) (*Server, error) {
 	st, err := acc.New(storagePath)
 	if err != nil {
 		return nil, err
 	}
 
-	expCache, err := exp.NewCache()
-	if err != nil {
-		return nil, err
-	}
-
 	s := &Server{
-		acc:     st,
-		exp:     expCache,
-		version: version,
-		ready:   make(chan bool),
+		acc:             st,
+		exp:             expCache,
+		version:         version,
+		ping:            time.Now(),
+		pingCheckPeriod: 2 * time.Second,
+		pingTimeout:     15 * time.Second,
 	}
 
 	mux := http.NewServeMux()
@@ -41,7 +40,7 @@ func New(storagePath string, version string) (*Server, error) {
 	mux.HandleFunc("/style.css", s.handleStyleCSS)
 	mux.HandleFunc("/main.js", s.handleMainJS)
 	mux.HandleFunc("/favicon.ico", s.handleFaviconIco)
-	mux.HandleFunc("/api/healthz", s.handleHealthz)
+	mux.HandleFunc("/api/ping", s.handlePing)
 	mux.HandleFunc("/api/version", s.handleVersion)
 	mux.HandleFunc("/api/accounts/list", s.handleAccList)
 	mux.HandleFunc("/api/accounts/rename", s.handleAccRename)
@@ -60,6 +59,8 @@ func New(storagePath string, version string) (*Server, error) {
 }
 
 func (s *Server) Run(ctx context.Context) error {
+	defer log.Printf("server.Run done")
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
@@ -69,34 +70,64 @@ func (s *Server) Run(ctx context.Context) error {
 
 	log.Printf("Listening on %s", s.ln.Addr())
 
-	close(s.ready)
-
 	eg, ctx := errgroup.WithContext(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+
 	eg.Go(func() error {
-		return http.Serve(s.ln, s.mux)
+		s.srv = &http.Server{Handler: s.mux}
+		return s.srv.Serve(ln)
 	})
+
 	eg.Go(func() error {
-		return s.exp.Run(ctx)
+		<-ctx.Done()
+		s.srv.Shutdown(ctx)
+		return ctx.Err()
+	})
+
+	eg.Go(func() error {
+		for {
+			var ok bool
+			s.pingMu.Lock()
+			ok = s.ping.Add(s.pingTimeout).After(time.Now())
+			s.pingMu.Unlock()
+
+			if !ok {
+				log.Printf("No pings received in the last %v; quitting.", s.pingTimeout)
+				cancel()
+				return context.Canceled
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(s.pingCheckPeriod):
+			}
+		}
+	})
+
+	eg.Go(func() error {
+		exec.Command("explorer", "http://"+s.ln.Addr().String()).Start()
+		return nil
 	})
 
 	return eg.Wait()
 }
 
-func (s *Server) Ready() <-chan bool {
-	return s.ready
-}
-
-func (s *Server) Addr() string {
-	return s.ln.Addr().String()
-}
-
 type Server struct {
-	acc     *acc.Storage
-	exp     *exp.Cache
-	mux     *http.ServeMux
-	ln      net.Listener
-	ready   chan bool
+	acc *acc.Storage
+	exp *exp.Cache
+
+	srv *http.Server
+	mux *http.ServeMux
+	ln  net.Listener
+
 	version string
+
+	cancel          func()
+	ping            time.Time
+	pingTimeout     time.Duration
+	pingCheckPeriod time.Duration
+	pingMu          sync.Mutex
 }
 
 func (s *Server) handleIndexHTML(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +147,7 @@ func (s *Server) handleMainJS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleFaviconIco(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/x-icon")
-	w.Write(assets.Favicon)
+	w.Write(favicon)
 }
 
 func (s *Server) handleAccList(w http.ResponseWriter, r *http.Request) {
@@ -293,7 +324,11 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ret)
 }
 
-func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
+	s.pingMu.Lock()
+	defer s.pingMu.Unlock()
+	s.ping = time.Now()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
 }
@@ -317,4 +352,6 @@ var (
 	styleCSS []byte
 	//go:embed static/main.js
 	mainJS []byte
+	//go:embed static/favicon.ico
+	favicon []byte
 )
