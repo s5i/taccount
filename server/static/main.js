@@ -170,8 +170,7 @@ refreshExpStats().then(() => {
     document.querySelectorAll('.btn-exp').forEach((x) => {
         x.addEventListener('click', async () => {
             document.querySelectorAll('.btn-exp').forEach((x) => { x.disabled = true; });
-            await fetch(x.dataset.action);
-            refreshExpStats();
+            fetch(x.dataset.action).then(refreshExpStats);
         });
     });
 });
@@ -196,5 +195,8 @@ try {
     })
 } catch { };
 
+// Foreground keepalive.
 setInterval(() => { fetch('/api/ping').catch(() => { window.close(); }); }, 1000);
-new Worker(window.URL.createObjectURL(new Blob(["setInterval(() => { fetch('/api/ping').catch(() => {}); }, 5000);"], { type: "text/javascript" })));
+
+// Background keepalive; a little less intense.
+new Worker(window.URL.createObjectURL(new Blob([`setInterval(() => { fetch('${window.location.href}'+'api/ping').catch(); }, 10000);`], { type: "text/javascript" })));
