@@ -59,8 +59,6 @@ func New(storagePath string, expCache *exp.Cache, version string) (*Server, erro
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	defer log.Printf("server.Run done")
-
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err

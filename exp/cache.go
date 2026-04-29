@@ -111,8 +111,6 @@ func (c *Cache) Stats() CacheStats {
 }
 
 func (c *Cache) Run(ctx context.Context) error {
-	defer log.Printf("cache.Run done")
-
 	sampleTicker := time.NewTicker(c.samplePeriod)
 	defer sampleTicker.Stop()
 

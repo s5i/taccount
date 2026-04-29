@@ -21,7 +21,7 @@ import (
 )
 
 func NewReader() (*Reader, error) {
-	ocr := lookup.NewOCR(0.7)
+	ocr := lookup.NewOCR(0.6)
 	if err := ocr.LoadFont(fontPath); err != nil {
 		return nil, err
 	}
