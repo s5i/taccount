@@ -178,10 +178,6 @@ refreshExpStats().then(() => {
 
 setInterval(refreshExpStats, 1000);
 
-setInterval(() => {
-    fetch('/api/ping').catch(() => { window.close(); });
-}, 1000);
-
 try {
     fetch('/api/version').then(async (r) => {
         if (!r.ok) return;
@@ -199,3 +195,6 @@ try {
         });
     })
 } catch { };
+
+setInterval(() => { fetch('/api/ping').catch(() => { window.close(); }); }, 1000);
+new Worker(window.URL.createObjectURL(new Blob(["setInterval(() => { fetch('/api/ping').catch(() => {}); }, 5000);"], { type: "text/javascript" })));
