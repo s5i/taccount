@@ -304,19 +304,27 @@ func (s *Server) handleExpUnpause(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 	stats := s.exp.Stats()
 	ret := struct {
-		LevelCurrent int  `json:"level_current,omitempty"`
-		ExpCurrent   int  `json:"exp_current,omitempty"`
-		ExpNextLevel int  `json:"exp_next_level,omitempty"`
-		ExpPerHour   int  `json:"exp_per_hour,omitempty"`
-		Running      bool `json:"running"`
-		Paused       bool `json:"paused"`
+		Level        int `json:"level,omitempty"`
+		TotalExp     int `json:"total_exp,omitempty"`
+		RemainingExp int `json:"remaining_exp,omitempty"`
+
+		SessionDelta       int `json:"session_delta,omitempty"`
+		SessionDurationSec int `json:"session_duration_sec,omitempty"`
+		SessionRate        int `json:"session_rate,omitempty"`
+
+		Running bool `json:"running"`
+		Paused  bool `json:"paused"`
 	}{
-		LevelCurrent: stats.LevelCurrent,
-		ExpCurrent:   stats.ExpCurrent,
-		ExpNextLevel: stats.ExpRemaining,
-		ExpPerHour:   stats.ExpPerHour,
-		Running:      stats.Running,
-		Paused:       stats.Paused,
+		Level:        stats.Level,
+		TotalExp:     stats.TotalExp,
+		RemainingExp: stats.RemainingExp,
+
+		SessionDelta:       stats.SessionDelta,
+		SessionDurationSec: int(stats.SessionDuration / time.Second),
+		SessionRate:        stats.SessionRate,
+
+		Running: stats.Running,
+		Paused:  stats.Paused,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ret)

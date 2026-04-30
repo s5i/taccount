@@ -10,10 +10,13 @@ import (
 )
 
 type CacheStats struct {
-	LevelCurrent int
-	ExpCurrent   int
-	ExpPerHour   int
-	ExpRemaining int
+	Level        int
+	TotalExp     int
+	RemainingExp int
+
+	SessionDelta    int
+	SessionRate     int
+	SessionDuration time.Duration
 
 	Running bool
 	Paused  bool
@@ -93,19 +96,25 @@ func (c *Cache) Stats() CacheStats {
 		Paused:  c.paused,
 	}
 
-	if c.lastSample == nil {
-		return s
+	dExp := c.stashedExp
+	dDur := c.stashedDur
+
+	if c.lastSample != nil {
+		dExp += c.lastSample.exp - c.startSample.exp
+		dDur += c.lastSample.t.Sub(c.startSample.t)
+
+		s.TotalExp = c.lastSample.exp
+		s.Level = c.level
+		s.RemainingExp = c.nextLevelExp - c.lastSample.exp
 	}
 
-	s.ExpCurrent = c.lastSample.exp
-	s.LevelCurrent = c.level
-	s.ExpRemaining = c.nextLevelExp - c.lastSample.exp
-
-	dExp := c.stashedExp + c.lastSample.exp - c.startSample.exp
-	dDur := c.stashedDur + c.lastSample.t.Sub(c.startSample.t)
-	if dDur > time.Second {
-		s.ExpPerHour = int(float64(dExp) * float64(time.Hour) / float64(dDur))
+	dDur = dDur.Truncate(time.Second)
+	if dDur >= time.Second {
+		s.SessionRate = int(float64(dExp) * float64(time.Hour) / float64(dDur))
 	}
+
+	s.SessionDelta = dExp
+	s.SessionDuration = dDur
 
 	return s
 }

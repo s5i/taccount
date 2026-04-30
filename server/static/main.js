@@ -142,17 +142,46 @@ async function refreshExpStats() {
     if (!r.ok) return;
     const data = await r.json();
 
-    const fmt = (x) => {
+    const fmtInt = (x) => {
         if (!Number.isInteger(x)) {
             return '-';
         }
         return x.toLocaleString('en-US');
     };
 
-    document.getElementById('exp-val-level').textContent = fmt(data.level_current);
-    document.getElementById('exp-val-exp').textContent = fmt(data.exp_current);
-    document.getElementById('exp-val-rate').textContent = fmt(data.exp_per_hour);
-    document.getElementById('exp-val-remaining').textContent = fmt(data.exp_next_level);
+    const fmtDur = (x) => {
+        if (!Number.isInteger(x)) {
+            return '-';
+        }
+        const h = Math.floor(x / 3600);
+        x -= h * 3600;
+        const m = Math.floor(x / 60);
+        x -= m * 60;
+        const s = x;
+
+        let durStr = '';
+        if (h) durStr += `${h}h`;
+        if (m) durStr += `${m}m`;
+        if (s) durStr += `${s}s`;
+
+        if (!durStr) return '-';
+        return durStr;
+    };
+
+    document.getElementById('exp-val-level').textContent = fmtInt(data.level);
+    document.getElementById('exp-val-total').textContent = fmtInt(data.total_exp);
+    document.getElementById('exp-val-remaining').textContent = fmtInt(data.remaining_exp);
+    document.getElementById('exp-val-session-delta').textContent = fmtInt(data.session_delta);
+    document.getElementById('exp-val-session-duration').textContent = fmtDur(data.session_duration_sec);
+    document.getElementById('exp-val-session-rate').textContent = fmtInt(data.session_rate);
+
+    document.querySelectorAll('.exp-value').forEach((x) => {
+        if (data.paused) {
+            x.classList.add('exp-value-paused');
+        } else {
+            x.classList.remove('exp-value-paused');
+        }
+    });
 
     document.getElementById('exp-btn-run').textContent = data.running ? 'Stop' : 'Start';
     document.getElementById('exp-btn-run').dataset.action = data.running ? '/api/exp/stop' : '/api/exp/start';
@@ -164,6 +193,8 @@ async function refreshExpStats() {
 
     document.getElementById('exp-btn-reset').disabled = !data.running;
     document.getElementById('exp-btn-reset').dataset.action = '/api/exp/reset';
+
+    document.getElementById('exp-container').dataset.autorefresh = Number(data.running && !data.paused);
 }
 
 refreshExpStats().then(() => {
@@ -175,7 +206,11 @@ refreshExpStats().then(() => {
     });
 });
 
-setInterval(refreshExpStats, 1000);
+setInterval(() => {
+    if (Number(document.getElementById('exp-container').dataset.autorefresh)) {
+        refreshExpStats();
+    }
+}, 1000);
 
 try {
     fetch('/api/version').then(async (r) => {

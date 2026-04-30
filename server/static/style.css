@@ -18,7 +18,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 420px;
+    max-width: 500px;
     margin: 10px;
 }
 
@@ -78,6 +78,7 @@ h1 {
     cursor: pointer;
     font-size: .8rem;
     transition: color .15s, border-color .15s;
+    background: #0f3460;
 }
 
 .btn-acc {
@@ -86,6 +87,7 @@ h1 {
 
 .btn-exp {
     width: 100%;
+    padding: 10px 10px;
 }
 
 .btn:hover {
@@ -141,7 +143,7 @@ h1 {
 .exp-val-grid {
     margin: 10px 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
 }
 
@@ -174,4 +176,8 @@ h1 {
     font-size: 1.1rem;
     font-weight: 600;
     color: #53d769;
+}
+
+.exp-value-paused {
+    color: #d4d247;
 }
