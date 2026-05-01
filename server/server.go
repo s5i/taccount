@@ -27,6 +27,7 @@ func New(accStorage *acc.Storage, expCache *exp.Cache, version string) (*Server,
 		version:         version,
 		ping:            time.Now(),
 		pingCheckPeriod: 2 * time.Second,
+		pingFails:       3,
 		pingTimeout:     15 * time.Second,
 	}
 
@@ -78,14 +79,18 @@ func (s *Server) Run(ctx context.Context) error {
 	})
 
 	eg.Go(func() error {
+		fails := 0
 		for {
-			var ok bool
 			s.pingMu.Lock()
-			ok = s.ping.Add(s.pingTimeout).After(time.Now())
+			if time.Now().After(s.ping.Add(s.pingTimeout)) {
+				fails++
+			} else {
+				fails = 0
+			}
 			s.pingMu.Unlock()
 
-			if !ok {
-				log.Printf("No pings received in the last %v; quitting.", s.pingTimeout)
+			if fails >= s.pingFails {
+				log.Printf("Last %d ping checks showed no activity within the last %v; quitting.", s.pingFails, s.pingTimeout)
 				cancel()
 				return context.Canceled
 			}
@@ -119,6 +124,7 @@ type Server struct {
 	cancel          func()
 	ping            time.Time
 	pingTimeout     time.Duration
+	pingFails       int
 	pingCheckPeriod time.Duration
 	pingMu          sync.Mutex
 }
@@ -177,6 +183,8 @@ func (s *Server) handleAccRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Account ID=%q renamed to %q.", req.ID, req.Name)
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -197,6 +205,8 @@ func (s *Server) handleAccDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("Account ID=%q deleted.", req.ID)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -228,6 +238,8 @@ func (s *Server) handleAccLoad(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("Account %q (ID=%q) loaded.", row.Name, row.ID)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -262,35 +274,42 @@ func (s *Server) handleAccStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Account %q (ID=%q) stored.", name, id)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entryJSON{ID: id, Name: name})
 }
 
 func (s *Server) handleExpReset(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Exp session reset.")
 	s.exp.Reset()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
 }
 
 func (s *Server) handleExpStart(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Exp session started.")
 	s.exp.Start()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
 }
 
 func (s *Server) handleExpStop(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Exp session stopped.")
 	s.exp.Stop()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
 }
 
 func (s *Server) handleExpPause(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Exp session paused.")
 	s.exp.Pause()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
 }
 
 func (s *Server) handleExpUnpause(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Exp session unpaused.")
 	s.exp.Unpause()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
