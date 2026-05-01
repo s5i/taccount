@@ -42,18 +42,20 @@ func NewReader(tmpDir string) (*Reader, error) {
 	return &Reader{
 		ocr:       ocr,
 		expKeyImg: eImg,
+		wc:        newWindowCapturer("Tibiantis"),
 	}, nil
 }
 
 type Reader struct {
 	ocr       *lookup.OCR
 	expKeyImg image.Image
+	wc        *windowCapturer
 }
 
 func (r *Reader) Read() (int, bool, error) {
-	windowImg, err := captureWindow("Tibiantis")
+	windowImg, err := r.wc.capture()
 	if err != nil {
-		return 0, false, fmt.Errorf(`CaptureWindow("Tibiantis") failed: %v`, err)
+		return 0, false, fmt.Errorf(`capture failed: %v`, err)
 	}
 
 	rightBarImg := windowImg.SubImage(image.Rect(
