@@ -6,45 +6,51 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/s5i/goutil/version"
+	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
 	"github.com/s5i/tassist/server"
 	"golang.org/x/sync/errgroup"
 )
 
 var (
-	accPath = flag.String("acc_path", filepath.Join(os.Getenv("AppData"), "TAssistant", "accounts.yaml"), "Path to accounts file.")
-	logPath = flag.String("log_path", filepath.Join(os.Getenv("Temp"), "tassist.log"), "Path to log file.")
+	dir    = flag.String("dir", filepath.Join(os.Getenv("AppData"), "TAssistant"), "Path to persistent dir.")
+	tmpDir = flag.String("tmp_dir", filepath.Join(os.Getenv("Temp"), "tassist"), "Path to temp dir.")
 )
 
 func main() {
-	if err := mainErr(); err != nil {
+	flag.Parse()
+
+	if err := os.MkdirAll(*tmpDir, 0755); err != nil {
 		log.Printf("Quitting with error: %v", err)
 		os.Exit(1)
 	}
-	log.Printf("Quitting.")
-}
 
-func mainErr() (retErr error) {
-	flag.Parse()
+	if err := os.MkdirAll(*dir, 0755); err != nil {
+		log.Printf("Quitting with error: %v", err)
+		os.Exit(1)
+	}
 
-	if f, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+	if f, err := os.OpenFile(filepath.Join(*tmpDir, "tassist.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
 		log.SetOutput(io.MultiWriter(f, os.Stderr))
 		defer f.Close()
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Crash detected: %v", r)
-			retErr = fmt.Errorf("recover(): %v", r)
-		}
-	}()
+	if err := mainErr(); err != nil {
+		log.Printf("Quitting with error: %v", err)
+		os.Exit(1)
+	}
+
+	log.Printf("Quitting.")
+}
+
+func mainErr() (retErr error) {
+	defer logPanic()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -52,13 +58,18 @@ func mainErr() (retErr error) {
 	ver := version.Get()
 	log.Printf("Running Tibiantis Assist %s", ver)
 
-	expCache, err := exp.NewCache()
+	st, err := acc.New(*dir)
+	if err != nil {
+		return err
+	}
+
+	expCache, err := exp.NewCache(*tmpDir)
 	if err != nil {
 		log.Printf("exp.NewCache() failed: %v", err)
 		return err
 	}
 
-	srv, err := server.New(*accPath, expCache, ver)
+	srv, err := server.New(st, expCache, ver)
 	if err != nil {
 		log.Printf("server.New() failed: %v", err)
 		return err
@@ -66,10 +77,12 @@ func mainErr() (retErr error) {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
+		defer logPanic()
 		return expCache.Run(ctx)
 	})
 
 	eg.Go(func() error {
+		defer logPanic()
 		return srv.Run(ctx)
 	})
 
@@ -78,4 +91,10 @@ func mainErr() (retErr error) {
 	}
 
 	return nil
+}
+
+func logPanic() {
+	if r := recover(); r != nil {
+		log.Printf("Crash detected: %v", r)
+	}
 }

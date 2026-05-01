@@ -20,14 +20,9 @@ import (
 	_ "embed"
 )
 
-func New(storagePath string, expCache *exp.Cache, version string) (*Server, error) {
-	st, err := acc.New(storagePath)
-	if err != nil {
-		return nil, err
-	}
-
+func New(accStorage *acc.Storage, expCache *exp.Cache, version string) (*Server, error) {
 	s := &Server{
-		acc:             st,
+		acc:             accStorage,
 		exp:             expCache,
 		version:         version,
 		ping:            time.Now(),

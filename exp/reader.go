@@ -11,27 +11,43 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/deluan/lookup"
 
 	_ "embed"
-	"image/png"
 	_ "image/png"
 )
 
-func NewReader() (*Reader, error) {
+func NewReader(tmpDir string) (*Reader, error) {
+	baseDir := filepath.Join(tmpDir, "exp")
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return nil, fmt.Errorf("os.MkdirAll(%q) failed: %v", baseDir, err)
+	}
+	if err := os.CopyFS(baseDir, fontFS); err != nil {
+		return nil, fmt.Errorf("os.CopyFS(%q) failed: %v", baseDir, err)
+	}
+	defer os.RemoveAll(baseDir)
+
+	eImg, _, err := image.Decode(bytes.NewReader(expKeyBytes))
+	if err != nil {
+		log.Fatalf("image.Decode(expKeyBytes) failed: %v", err)
+	}
+
 	ocr := lookup.NewOCR(0.6)
-	if err := ocr.LoadFont(fontPath); err != nil {
+	if err := ocr.LoadFont(filepath.Join(baseDir, "assets/font")); err != nil {
 		return nil, err
 	}
+
 	return &Reader{
-		ocr: ocr,
+		ocr:       ocr,
+		expKeyImg: eImg,
 	}, nil
 }
 
 type Reader struct {
-	ocr *lookup.OCR
+	ocr       *lookup.OCR
+	expKeyImg image.Image
 }
 
 func (r *Reader) Read() (int, bool, error) {
@@ -47,7 +63,7 @@ func (r *Reader) Read() (int, bool, error) {
 		windowImg.Rect.Max.Y,
 	)).(*image.RGBA)
 
-	expMatches, err := lookup.NewLookup(rightBarImg).FindAll(expKeyImg, 0.8)
+	expMatches, err := lookup.NewLookup(rightBarImg).FindAll(r.expKeyImg, 0.8)
 	if err != nil {
 		return 0, false, fmt.Errorf(`lookup.FindAll(expImg) failed: %v`, err)
 	}
@@ -63,10 +79,10 @@ func (r *Reader) Read() (int, bool, error) {
 		}
 	}
 
-	expValX := rightBarImg.Rect.Min.X + expMatch.X + expKeyImg.Bounds().Dx()
+	expValX := rightBarImg.Rect.Min.X + expMatch.X + r.expKeyImg.Bounds().Dx()
 	expValY := rightBarImg.Rect.Min.Y + expMatch.Y
 	expValDX := 80
-	expValDY := expKeyImg.Bounds().Dy()
+	expValDY := r.expKeyImg.Bounds().Dy()
 	expValueImg := rightBarImg.SubImage(image.Rect(expValX, expValY, expValX+expValDX, expValY+expValDY))
 
 	expStr, err := r.ocr.Recognize(expValueImg)
@@ -74,7 +90,7 @@ func (r *Reader) Read() (int, bool, error) {
 		return 0, false, fmt.Errorf("ocr.Recognize() failed: %v", err)
 	}
 
-	exp, err := strconv.Atoi(expStr)
+	exp, err := strconv.Atoi(strings.ReplaceAll(expStr, " ", ""))
 	if err != nil {
 		return 0, false, err
 	}
@@ -85,43 +101,7 @@ func (r *Reader) Read() (int, bool, error) {
 var (
 	//go:embed assets/experience.png
 	expKeyBytes []byte
-	expKeyImg   image.Image
 
 	//go:embed assets/font
 	fontFS embed.FS
-
-	basePath = filepath.Join(os.TempDir(), "tassist")
-	fontPath = filepath.Join(basePath, "assets", "font")
 )
-
-func init() {
-	os.RemoveAll(basePath)
-	if err := os.MkdirAll(basePath, 0755); err != nil {
-		log.Fatalf("os.MkdirAll(%q) failed: %v", basePath, err)
-	}
-	if err := os.CopyFS(basePath, fontFS); err != nil {
-		log.Fatalf("os.CopyFS(%q) failed: %v", basePath, err)
-	}
-
-	eImg, _, err := image.Decode(bytes.NewReader(expKeyBytes))
-	if err != nil {
-		log.Fatalf("image.Decode(expKeyBytes) failed: %v", err)
-	}
-	expKeyImg = eImg
-}
-
-func saveImg(prefix string, img image.Image) {
-	filename := fmt.Sprintf("%s_%d.png", prefix, time.Now().Unix())
-	f, err := os.Create(filename)
-	if err != nil {
-		log.Printf("Failed to create file: %v", err)
-		return
-	}
-
-	if err := png.Encode(f, img); err != nil {
-		log.Printf("Failed to encode png: %v", err)
-		f.Close()
-		return
-	}
-	f.Close()
-}

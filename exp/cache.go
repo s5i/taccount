@@ -22,8 +22,8 @@ type CacheStats struct {
 	Paused  bool
 }
 
-func NewCache() (*Cache, error) {
-	r, err := NewReader()
+func NewCache(tmpDir string) (*Cache, error) {
+	r, err := NewReader(tmpDir)
 	if err != nil {
 		return nil, err
 	}

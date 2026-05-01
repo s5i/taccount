@@ -12,13 +12,13 @@ import (
 )
 
 type Storage struct {
-	path    string
+	file    string
 	entries []*row
 }
 
-func New(path string) (*Storage, error) {
+func New(dir string) (*Storage, error) {
 	s := &Storage{
-		path: path,
+		file: filepath.Join(dir, "accounts.yaml"),
 	}
 
 	if err := s.load(); err != nil {
@@ -93,7 +93,7 @@ func (y *Storage) RenameRow(id, newName string) error {
 }
 
 func (y *Storage) load() error {
-	data, err := os.ReadFile(y.path)
+	data, err := os.ReadFile(y.file)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
@@ -114,11 +114,11 @@ func (y *Storage) save(entries []*row) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(y.path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(y.file), 0755); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(y.path, data, 0644); err != nil {
+	if err := os.WriteFile(y.file, data, 0644); err != nil {
 		return err
 	}
 

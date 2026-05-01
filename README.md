@@ -51,4 +51,4 @@ Alternatively, you're free to audit and compile the code yourself:
 
 * Contact: shyymzinhu @ Discord.
 * UI issues: attach DevTools console output (F12 on most browsers).
-* Crash: attach the contents of `%Temp%\tassist.log`.
+* Crash: attach the contents of `%Temp%\tassist\tassist.log`.
