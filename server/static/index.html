@@ -8,13 +8,12 @@
 </head>
 
 <body>
-    <div id="version-check" class="toast-top"></div>
-    <div class="container">
-        <h1>Account Switcher</h1>
-        <div id="list"></div>
+    <div id="acc-container" class="container">
+        <div class="container-title">Account Switcher</div>
+        <div id="acc-list" class="acc-list"></div>
     </div>
     <div id="exp-container" class="container">
-        <h1>Experience Tracker</h1>
+        <div class="container-title">Experience Tracker</div>
         <div class="exp-val-grid">
             <div class="exp-cell">
                 <span class="exp-label">Level</span>
@@ -42,9 +41,9 @@
             </div>
         </div>
         <div class="exp-btn-grid">
-            <button id="exp-btn-run" class="btn btn-exp">Start</button>
-            <button id="exp-btn-pause" class="btn btn-exp">Pause</button>
-            <button id="exp-btn-reset" class="btn btn-exp">Reset</button>
+            <button id="exp-btn-run" class="btn exp-btn">Start</button>
+            <button id="exp-btn-pause" class="btn exp-btn">Pause</button>
+            <button id="exp-btn-reset" class="btn exp-btn">Reset</button>
         </div>
     </div>
     <div id="toast" class="toast"></div>

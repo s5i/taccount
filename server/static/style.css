@@ -22,7 +22,7 @@ body {
     margin: 10px;
 }
 
-h1 {
+.container-title {
     font-size: 1.3rem;
     font-weight: 600;
     color: #e94560;
@@ -31,42 +31,27 @@ h1 {
     letter-spacing: .5px;
 }
 
-#list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.entry {
-    display: flex;
-    align-items: center;
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 8px;
-    padding: 10px 14px;
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
-}
-
-.entry:hover {
-    background: #1a2a50;
-    border-color: #e94560;
-}
-
-.entry .name {
-    flex: 1;
-    font-size: .95rem;
-    outline: none;
-    background: transparent;
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f3460;
     color: #e0e0e0;
-    border: none;
-    border-bottom: 1px solid transparent;
-    padding: 2px 0;
-    font-family: inherit;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: .85rem;
+    opacity: 0;
+    transition: opacity .3s;
+    z-index: 10;
 }
 
-.entry .name:focus {
-    border-bottom-color: #e94560;
+.toast-visible {
+    opacity: 1;
+}
+
+.link {
+    color: #e0e0e0;
 }
 
 .btn {
@@ -74,20 +59,10 @@ h1 {
     border: 1px solid #0f3460;
     color: #aaa;
     border-radius: 6px;
-    padding: 4px 10px;
     cursor: pointer;
     font-size: .8rem;
     transition: color .15s, border-color .15s;
     background: #0f3460;
-}
-
-.btn-acc {
-    margin-left: 6px;
-}
-
-.btn-exp {
-    width: 100%;
-    padding: 10px 10px;
 }
 
 .btn:hover {
@@ -110,34 +85,47 @@ h1 {
     border-color: #ff4444;
 }
 
-.empty {
-    text-align: center;
-    color: #555;
-    margin-top: 40px;
-    font-style: italic;
+.acc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #0f3460;
-    color: #e0e0e0;
-    padding: 10px 24px;
+.acc-entry {
+    display: flex;
+    align-items: center;
+    background: #16213e;
+    border: 1px solid #0f3460;
     border-radius: 8px;
-    font-size: .85rem;
-    opacity: 0;
-    transition: opacity .3s;
-    z-index: 10;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
 }
 
-.toast.show {
-    opacity: 1;
+.acc-entry:hover {
+    background: #1a2a50;
+    border-color: #e94560;
 }
 
-.link {
+.acc-name {
+    flex: 1;
+    font-size: .95rem;
+    outline: none;
+    background: transparent;
     color: #e0e0e0;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 2px 0;
+    font-family: inherit;
+}
+
+.acc-name:focus {
+    border-bottom-color: #e94560;
+}
+
+.acc-btn {
+    margin-left: 6px;
+    padding: 4px 10px;
 }
 
 .exp-val-grid {
@@ -180,4 +168,9 @@ h1 {
 
 .exp-value-paused {
     color: #d4d247;
+}
+
+.exp-btn {
+    width: 100%;
+    padding: 10px 10px;
 }
