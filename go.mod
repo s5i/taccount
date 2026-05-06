@@ -18,4 +18,6 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/prometheus-community/pro-bing v0.8.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 )

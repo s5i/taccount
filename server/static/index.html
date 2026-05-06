@@ -8,42 +8,59 @@
 </head>
 
 <body>
-    <div id="acc-container" class="container">
-        <div class="container-title">Account Switcher</div>
-        <div id="acc-list" class="acc-list"></div>
-    </div>
-    <div id="exp-container" class="container">
-        <div class="container-title">Experience Tracker</div>
-        <div class="exp-val-grid">
-            <div class="exp-cell">
-                <span class="exp-label">Level</span>
-                <span id="exp-val-level" class="exp-value">-</span>
-            </div>
-            <div class="exp-cell">
-                <span class="exp-label">Experience</span>
-                <span id="exp-val-total" class="exp-value">-</span>
-            </div>
-            <div class="exp-cell">
-                <span class="exp-label">Remaining</span>
-                <span id="exp-val-remaining" class="exp-value">-</span>
-            </div>
-            <div class="exp-cell">
-                <span class="exp-label">Session Exp/h</span>
-                <span id="exp-val-session-rate" class="exp-value">-</span>
-            </div>
-            <div class="exp-cell">
-                <span class="exp-label">Session Exp</span>
-                <span id="exp-val-session-delta" class="exp-value">-</span>
-            </div>
-            <div class="exp-cell">
-                <span class="exp-label">Session Duration</span>
-                <span id="exp-val-session-duration" class="exp-value">-</span>
+    <div class="container-column">
+        <div id="ping-container" class="container ping-container">
+            <div class="container-title">Ping</div>
+            <div class="ping-val-grid">
+                <div class="ping-cell">
+                    <span class="ping-label">RTT</span>
+                    <span id="ping-val-rtt" class="ping-value">-</span>
+                </div>
+                <div class="ping-cell">
+                    <span class="ping-label">Packet Loss <span id="ping-val-packetloss-window"></span></span>
+                    <span id="ping-val-packetloss" class="ping-value">-</span>
+                </div>
             </div>
         </div>
-        <div class="exp-btn-grid">
-            <button id="exp-btn-run" class="btn exp-btn">Start</button>
-            <button id="exp-btn-pause" class="btn exp-btn">Pause</button>
-            <button id="exp-btn-reset" class="btn exp-btn">Reset</button>
+        <div id="exp-container" class="container exp-container">
+            <div class="container-title">Experience Tracker</div>
+            <div class="exp-val-grid">
+                <div class="exp-cell">
+                    <span class="exp-label">Level</span>
+                    <span id="exp-val-level" class="exp-value">-</span>
+                </div>
+                <div class="exp-cell">
+                    <span class="exp-label">Experience</span>
+                    <span id="exp-val-total" class="exp-value">-</span>
+                </div>
+                <div class="exp-cell">
+                    <span class="exp-label">Remaining</span>
+                    <span id="exp-val-remaining" class="exp-value">-</span>
+                </div>
+                <div class="exp-cell">
+                    <span class="exp-label">Session Exp/h</span>
+                    <span id="exp-val-session-rate" class="exp-value">-</span>
+                </div>
+                <div class="exp-cell">
+                    <span class="exp-label">Session Exp</span>
+                    <span id="exp-val-session-delta" class="exp-value">-</span>
+                </div>
+                <div class="exp-cell">
+                    <span class="exp-label">Session Duration</span>
+                    <span id="exp-val-session-duration" class="exp-value">-</span>
+                </div>
+            </div>
+            <div class="exp-btn-grid">
+                <button id="exp-btn-run" class="btn exp-btn">Start</button>
+                <button id="exp-btn-pause" class="btn exp-btn">Pause</button>
+                <button id="exp-btn-reset" class="btn exp-btn">Reset</button>
+            </div>
+        </div>
+    </div>
+    <div class="container-column">
+        <div id="acc-container" class="container acc-container">
+            <div class="container-title">Account Switcher</div>
+            <div id="acc-list" class="acc-list"></div>
         </div>
     </div>
     <div id="toast" class="toast"></div>

@@ -14,6 +14,7 @@ import (
 	"github.com/s5i/goutil/version"
 	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
+	"github.com/s5i/tassist/ping"
 	"github.com/s5i/tassist/server"
 	"golang.org/x/sync/errgroup"
 )
@@ -69,7 +70,13 @@ func mainErr() (retErr error) {
 		return err
 	}
 
-	srv, err := server.New(st, expCache, ver)
+	pinger, err := ping.New()
+	if err != nil {
+		log.Printf("ping.New() failed: %v", err)
+		return err
+	}
+
+	srv, err := server.New(st, expCache, pinger, ver)
 	if err != nil {
 		log.Printf("server.New() failed: %v", err)
 		return err
@@ -79,6 +86,11 @@ func mainErr() (retErr error) {
 	eg.Go(func() error {
 		defer logPanic()
 		return expCache.Run(ctx)
+	})
+
+	eg.Go(func() error {
+		defer logPanic()
+		return pinger.Run(ctx)
 	})
 
 	eg.Go(func() error {

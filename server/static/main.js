@@ -14,13 +14,13 @@ const toast = {
     timer: undefined,
 };
 
-const ping = {
+const keepalive = {
     run: async function () {
         // Foreground keepalive.
-        setInterval(() => { fetch('/api/ping').catch(() => { window.close(); }); }, 1000);
+        setInterval(() => { fetch('/api/keepalive').catch(() => { window.close(); }); }, 1000);
 
         // Background keepalive; a little less intense.
-        new Worker(window.URL.createObjectURL(new Blob([`setInterval(() => { fetch('${window.location.href}'+'api/ping').catch(); }, 10000);`], { type: "text/javascript" })));
+        new Worker(window.URL.createObjectURL(new Blob([`setInterval(() => { fetch('${window.location.href}'+'api/keepalive').catch(); }, 10000);`], { type: "text/javascript" })));
     },
 };
 
@@ -257,7 +257,53 @@ const acc = {
     },
 };
 
-ping.run();
+const ping = {
+    run: function () {
+        setInterval(() => {
+            ping.reload();
+        }, 1000);
+
+        ping.reload();
+    },
+    reload: async function () {
+        const r = await fetch('/api/ping/stats');
+        if (!r.ok) return;
+        const d = await r.json();
+
+        d.packet_loss = parseFloat(d.packet_loss);
+        document.getElementById('ping-val-rtt').textContent = ping.fmtMsec(d.rtt_msec);
+        document.getElementById('ping-val-packetloss').textContent = ping.fmtPacketLoss(d.packet_loss);
+        document.getElementById('ping-val-packetloss-window').textContent = ping.fmtPacketLossWindow(d.packet_loss_window_sec);
+
+        if (d.packet_loss > 0.1) {
+            document.getElementById('ping-val-packetloss').classList.add('ping-value-bad');
+            document.getElementById('ping-val-packetloss').classList.remove('ping-value-meh');
+        } else if (d.packet_loss > 0.05) {
+            document.getElementById('ping-val-packetloss').classList.add('ping-value-meh');
+            document.getElementById('ping-val-packetloss').classList.remove('ping-value-bad');
+        } else {
+            document.getElementById('ping-val-packetloss').classList.remove('ping-value-bad', 'ping-value-meh');
+        }
+    },
+    fmtPacketLossWindow: function (x) {
+        if (!Number.isInteger(x)) {
+            return '';
+        }
+        return `(last ${x} sec)`;
+    },
+    fmtMsec: function (x) {
+        if (!Number.isInteger(x)) {
+            return '-';
+        }
+        return `${x}ms`;
+    },
+    fmtPacketLoss: function (x) {
+        return `${(100.0 * x).toPrecision(1)}%`;
+    },
+};
+
+keepalive.run();
 version.run();
 exp.run();
 acc.run();
+ping.run();

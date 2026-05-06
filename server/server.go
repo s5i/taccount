@@ -15,20 +15,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
+	"github.com/s5i/tassist/ping"
 	"golang.org/x/sync/errgroup"
 
 	_ "embed"
 )
 
-func New(accStorage *acc.Storage, expCache *exp.Cache, version string) (*Server, error) {
+func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string) (*Server, error) {
 	s := &Server{
-		acc:             accStorage,
-		exp:             expCache,
-		version:         version,
-		ping:            time.Now(),
-		pingCheckPeriod: 2 * time.Second,
-		pingFails:       3,
-		pingTimeout:     15 * time.Second,
+		acc:                  accStorage,
+		exp:                  expCache,
+		pinger:               pinger,
+		version:              version,
+		keepalive:            time.Now(),
+		keepaliveCheckPeriod: 2 * time.Second,
+		keepaliveFails:       3,
+		keepaliveTimeout:     15 * time.Second,
 	}
 
 	mux := http.NewServeMux()
@@ -36,7 +38,7 @@ func New(accStorage *acc.Storage, expCache *exp.Cache, version string) (*Server,
 	mux.HandleFunc("/style.css", s.handleStyleCSS)
 	mux.HandleFunc("/main.js", s.handleMainJS)
 	mux.HandleFunc("/favicon.ico", s.handleFaviconIco)
-	mux.HandleFunc("/api/ping", s.handlePing)
+	mux.HandleFunc("/api/keepalive", s.handleKeepalive)
 	mux.HandleFunc("/api/version", s.handleVersion)
 	mux.HandleFunc("/api/accounts/list", s.handleAccList)
 	mux.HandleFunc("/api/accounts/rename", s.handleAccRename)
@@ -49,6 +51,7 @@ func New(accStorage *acc.Storage, expCache *exp.Cache, version string) (*Server,
 	mux.HandleFunc("/api/exp/pause", s.handleExpPause)
 	mux.HandleFunc("/api/exp/unpause", s.handleExpUnpause)
 	mux.HandleFunc("/api/exp/reset", s.handleExpReset)
+	mux.HandleFunc("/api/ping/stats", s.handlePingStats)
 	s.mux = mux
 
 	return s, nil
@@ -67,8 +70,9 @@ func (s *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
 
+	s.srv = &http.Server{Handler: s.mux}
+
 	eg.Go(func() error {
-		s.srv = &http.Server{Handler: s.mux}
 		return s.srv.Serve(ln)
 	})
 
@@ -81,16 +85,16 @@ func (s *Server) Run(ctx context.Context) error {
 	eg.Go(func() error {
 		fails := 0
 		for {
-			s.pingMu.Lock()
-			if time.Now().After(s.ping.Add(s.pingTimeout)) {
+			s.keepaliveMu.Lock()
+			if time.Now().After(s.keepalive.Add(s.keepaliveTimeout)) {
 				fails++
 			} else {
 				fails = 0
 			}
-			s.pingMu.Unlock()
+			s.keepaliveMu.Unlock()
 
-			if fails >= s.pingFails {
-				log.Printf("Last %d ping checks showed no activity within the last %v; quitting.", s.pingFails, s.pingTimeout)
+			if fails >= s.keepaliveFails {
+				log.Printf("Last %d ping checks showed no activity within the last %v; quitting.", s.keepaliveFails, s.keepaliveTimeout)
 				cancel()
 				return context.Canceled
 			}
@@ -98,7 +102,7 @@ func (s *Server) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(s.pingCheckPeriod):
+			case <-time.After(s.keepaliveCheckPeriod):
 			}
 		}
 	})
@@ -112,8 +116,9 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 type Server struct {
-	acc *acc.Storage
-	exp *exp.Cache
+	acc    *acc.Storage
+	exp    *exp.Cache
+	pinger *ping.Pinger
 
 	srv *http.Server
 	mux *http.ServeMux
@@ -121,12 +126,12 @@ type Server struct {
 
 	version string
 
-	cancel          func()
-	ping            time.Time
-	pingTimeout     time.Duration
-	pingFails       int
-	pingCheckPeriod time.Duration
-	pingMu          sync.Mutex
+	cancel               func()
+	keepalive            time.Time
+	keepaliveTimeout     time.Duration
+	keepaliveFails       int
+	keepaliveCheckPeriod time.Duration
+	keepaliveMu          sync.Mutex
 }
 
 func (s *Server) handleIndexHTML(w http.ResponseWriter, r *http.Request) {
@@ -344,10 +349,25 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ret)
 }
 
-func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
-	s.pingMu.Lock()
-	defer s.pingMu.Unlock()
-	s.ping = time.Now()
+func (s *Server) handlePingStats(w http.ResponseWriter, r *http.Request) {
+	stats := s.pinger.Stats()
+	ret := struct {
+		RTTMSec             int     `json:"rtt_msec,omitempty"`
+		PacketLoss          float64 `json:"packet_loss"`
+		PacketLossWindowSec int     `json:"packet_loss_window_sec"`
+	}{
+		RTTMSec:             int(stats.RTT / time.Millisecond),
+		PacketLoss:          stats.PacketLoss,
+		PacketLossWindowSec: int(stats.PacketLossWindow / time.Second),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ret)
+}
+
+func (s *Server) handleKeepalive(w http.ResponseWriter, r *http.Request) {
+	s.keepaliveMu.Lock()
+	defer s.keepaliveMu.Unlock()
+	s.keepalive = time.Now()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{}"))
