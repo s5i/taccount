@@ -6,6 +6,7 @@ require (
 	github.com/deluan/lookup v0.0.8
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
+	github.com/prometheus-community/pro-bing v0.8.0
 	github.com/s5i/goutil/version v0.0.0
 	github.com/winlabs/gowin32 v0.0.0-20260308155911-6a6dc53430f0
 	golang.org/x/sync v0.20.0
@@ -18,6 +19,5 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
-	github.com/prometheus-community/pro-bing v0.8.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 )

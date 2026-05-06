@@ -17,7 +17,7 @@ Alternatively, you're free to audit and compile the code yourself:
 ## Usage
 
 * Startup: The application opens a webpage in your default browser.
-* Quitting: The application quits automatically 15 seconds after receiving the last ping from the browser.
+* Quitting: The application quits automatically ~15-20 seconds after closing the browser tab.
 
 ### Account Switcher
 
@@ -33,16 +33,22 @@ Alternatively, you're free to audit and compile the code yourself:
 
 * You need to have the Skills tab open with the "Experience" line being visible.
 * "Level" and "Experience" display the current level and experience, respectively.
-* "Exp/h" displays the experience per hour since the session started.
 * "Remaining" displays the experience needed to reach the next level.
-* "Start"/"Stop": controls whether the experience tracking session is active.
-* "Pause"/"Unpause" controls whether the experience tracking session is paused; while paused, neither experience changes nor time elapsed is counted towards exp/h.
-* "Reset" resets the experience tracking session.
+* "Session exp/h", "Session exp", "Session duration" display the experience per hour, gained experience, and time elapsed since the session started, respectively.
+* "Start"/"Stop": controls whether the session is active.
+* "Pause"/"Unpause" controls whether the session is paused; while paused, neither experience changes nor time elapsed is counted towards exp/h.
+* "Reset" resets the session.
 * Known issues:
   * If exp detection is not working despite an active session, try re-focusing the Tibiantis client window (eg. by alt-tabbing into another window and back).
 * Technical details:
   * TAssist takes a screenshot of a window titled "Tibiantis" every 2 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
 
+### Ping
+
+* "RTT" displays your round-trip-time (a.k.a. ping) to Ancestra.
+* "Packet loss" displays the percentage of ping packets lost within the last 20 seconds.
+* Technical details:
+  * Ancestra IP is assumed to be `51.89.155.163`.
 ### Screenshots
 
 ![Local webpage view](https://raw.github.com/s5i/tassist/main/example.png)
@@ -51,4 +57,4 @@ Alternatively, you're free to audit and compile the code yourself:
 
 * Contact: shyymzinhu @ Discord.
 * UI issues: attach DevTools console output (F12 on most browsers).
-* Crash: attach the contents of `%Temp%\tassist\tassist.log`.
+* Crash / other weird issues: attach the contents of `%Temp%\tassist\tassist.log`.
