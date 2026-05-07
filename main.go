@@ -16,6 +16,7 @@ import (
 	"github.com/s5i/tassist/exp"
 	"github.com/s5i/tassist/ping"
 	"github.com/s5i/tassist/server"
+	"github.com/s5i/tassist/settings"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,30 +28,48 @@ var (
 func main() {
 	flag.Parse()
 
-	if err := os.MkdirAll(*tmpDir, 0755); err != nil {
-		log.Printf("Quitting with error: %v", err)
-		os.Exit(1)
-	}
+	for {
+		var exit bool
+		var exitCode int
 
-	if err := os.MkdirAll(*dir, 0755); err != nil {
-		log.Printf("Quitting with error: %v", err)
-		os.Exit(1)
-	}
+		func() {
+			if f, err := os.OpenFile(filepath.Join(*tmpDir, "tassist.log"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644); err == nil {
+				log.SetOutput(io.MultiWriter(f, os.Stderr))
+				defer f.Close()
+			}
 
-	if f, err := os.OpenFile(filepath.Join(*tmpDir, "tassist.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-		log.SetOutput(io.MultiWriter(f, os.Stderr))
-		defer f.Close()
-	}
+			err := mainErr()
+			switch {
 
-	if err := mainErr(); err != nil {
-		log.Printf("Quitting with error: %v", err)
-		os.Exit(1)
-	}
+			case errors.Is(err, server.ErrRestart):
+				log.Printf("Restarting...")
+				exit = false
 
-	log.Printf("Quitting.")
+			case err != nil:
+				log.Printf("Quitting with error: %v", err)
+				exit, exitCode = true, 1
+
+			default:
+				log.Printf("Quitting.")
+				exit, exitCode = true, 0
+			}
+		}()
+
+		if exit {
+			os.Exit(exitCode)
+		}
+	}
 }
 
 func mainErr() (retErr error) {
+	if err := os.MkdirAll(*tmpDir, 0755); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(*dir, 0755); err != nil {
+		return err
+	}
+
 	defer logPanic()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,24 +78,29 @@ func mainErr() (retErr error) {
 	ver := version.Get()
 	log.Printf("Running Tibiantis Assist %s", ver)
 
-	st, err := acc.New(*dir)
+	stStorage, err := settings.New(*dir)
 	if err != nil {
 		return err
 	}
 
-	expCache, err := exp.NewCache(*tmpDir)
+	accStorage, err := acc.New(*dir, stStorage)
+	if err != nil {
+		return err
+	}
+
+	expCache, err := exp.NewCache(*tmpDir, stStorage)
 	if err != nil {
 		log.Printf("exp.NewCache() failed: %v", err)
 		return err
 	}
 
-	pinger, err := ping.New()
+	pinger, err := ping.New(stStorage)
 	if err != nil {
 		log.Printf("ping.New() failed: %v", err)
 		return err
 	}
 
-	srv, err := server.New(st, expCache, pinger, ver)
+	srv, err := server.New(accStorage, expCache, pinger, ver, stStorage)
 	if err != nil {
 		log.Printf("server.New() failed: %v", err)
 		return err

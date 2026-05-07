@@ -2,22 +2,42 @@ package ping
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
 	probing "github.com/prometheus-community/pro-bing"
+	"github.com/s5i/tassist/settings"
+	"golang.org/x/sync/errgroup"
 )
 
-const (
-	addrAncestra = "51.89.155.163"
-)
+func New(stStorage *settings.Storage) (*Pinger, error) {
+	ret := &Pinger{}
 
-func New() (*Pinger, error) {
-	ret := &Pinger{
+	st := stStorage.Get()
+	p, err := new(st.ServerAddr)
+	if err != nil {
+		return nil, err
+	}
+	ret.pinger = p
+
+	for _, addr := range st.ProxyAddrs {
+		p, err := new(addr)
+		if err != nil {
+			return nil, err
+		}
+		ret.proxyPingers = append(ret.proxyPingers, p)
+	}
+
+	return ret, nil
+}
+
+func new(addr string) (*pinger, error) {
+	ret := &pinger{
 		wait: make([]bool, 20),
 	}
 
-	pinger := probing.New(addrAncestra)
+	pinger := probing.New(addr)
 	pinger.SetPrivileged(true)
 	pinger.OnRecv = func(p *probing.Packet) {
 		ret.registerRecv(p.Rtt)
@@ -31,6 +51,47 @@ func New() (*Pinger, error) {
 }
 
 type Pinger struct {
+	pinger       *pinger
+	proxyPingers []*pinger
+}
+
+func (m *Pinger) Run(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return m.pinger.Run(ctx)
+	})
+	for _, p := range m.proxyPingers {
+		eg.Go(func() error {
+			return p.Run(ctx)
+		})
+	}
+	return eg.Wait()
+}
+
+func (m *Pinger) Stats() MultiStats {
+	ret := MultiStats{
+		Main: m.pinger.Stats(),
+	}
+
+	if len(m.proxyPingers) > 0 {
+		var proxy []Stats
+		for _, p := range m.proxyPingers {
+			proxy = append(proxy, p.Stats())
+		}
+
+		slices.SortFunc(proxy, func(a, b Stats) int {
+			if a.PacketLoss == b.PacketLoss {
+				return int(a.RTT - b.RTT)
+			}
+			return int(1000 * (a.PacketLoss - b.PacketLoss))
+		})
+		ret.Proxy = &proxy[0]
+	}
+
+	return ret
+}
+
+type pinger struct {
 	pinger *probing.Pinger
 	ok     bool
 	rtt    time.Duration
@@ -40,6 +101,11 @@ type Pinger struct {
 	mu     sync.Mutex
 }
 
+type MultiStats struct {
+	Main  Stats
+	Proxy *Stats
+}
+
 type Stats struct {
 	OK               bool
 	RTT              time.Duration
@@ -47,11 +113,11 @@ type Stats struct {
 	PacketLossWindow time.Duration
 }
 
-func (p *Pinger) Run(ctx context.Context) error {
+func (p *pinger) Run(ctx context.Context) error {
 	return p.pinger.RunWithContext(ctx)
 }
 
-func (p *Pinger) Stats() Stats {
+func (p *pinger) Stats() Stats {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -65,7 +131,7 @@ func (p *Pinger) Stats() Stats {
 	return ret
 }
 
-func (p *Pinger) registerRecv(d time.Duration) {
+func (p *pinger) registerRecv(d time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -74,7 +140,7 @@ func (p *Pinger) registerRecv(d time.Duration) {
 	p.wait[p.waitIt] = false
 }
 
-func (p *Pinger) registerSend() {
+func (p *pinger) registerSend() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

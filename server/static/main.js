@@ -271,8 +271,8 @@ const ping = {
         const d = await r.json();
 
         d.packet_loss = parseFloat(d.packet_loss);
-        document.getElementById('ping-val-rtt').textContent = ping.fmtMsec(d.rtt_msec);
-        document.getElementById('ping-val-packetloss').textContent = ping.fmtPacketLoss(d.packet_loss);
+        document.getElementById('ping-val-rtt').textContent = ping.fmtMsec(d.rtt_msec, d.proxy_rtt_msec);
+        document.getElementById('ping-val-packetloss').textContent = ping.fmtPacketLoss(d.packet_loss, d.proxy_packet_loss);
         document.getElementById('ping-val-packetloss-window').textContent = ping.fmtPacketLossWindow(d.packet_loss_window_sec);
 
         if (d.packet_loss > 0.1) {
@@ -291,17 +291,63 @@ const ping = {
         }
         return `(last ${x} sec)`;
     },
-    fmtMsec: function (x) {
-        if (!Number.isInteger(x)) {
+    fmtMsec: function (main, proxy) {
+        if (!Number.isInteger(main)) {
             return '-';
         }
-        return `${x}ms`;
+        if (!Number.isInteger(proxy)) {
+            return `${main}ms`;
+        }
+        return `${main}ms (${proxy}ms)`;
     },
-    fmtPacketLoss: function (x) {
-        return `${(100.0 * x).toPrecision(1)}%`;
+    fmtPacketLoss: function (main, proxy) {
+        if (proxy === undefined) {
+            return `${(100.0 * main).toPrecision(1)}%`;
+        }
+        return `${(100.0 * main).toPrecision(1)}% (${(100.0 * proxy).toPrecision(1)}%)`;
     },
 };
 
+const preset = {
+    run: async function () {
+        const resp = await fetch('/api/preset/list');
+        if (!resp.ok) return;
+        const d = await resp.json();
+
+        const containerEl = document.getElementById('preset-container');
+        containerEl.innerHTML = '';
+
+        d.available.forEach((id) => {
+            const btn = document.createElement('button');
+            containerEl.appendChild(btn);
+
+            btn.textContent = preset.fmtID(id);
+            btn.classList.add('btn', 'preset-btn');
+            btn.dataset.id = id;
+            btn.addEventListener('click', preset.hdlLoad);
+
+            if (id == d.active) {
+                btn.classList.add('preset-active');
+            }
+        });
+    },
+    hdlLoad: async function (ev) {
+        const btn = ev.target.closest('.preset-btn');
+        const id = btn.dataset.id;
+
+        const r = await fetch('/api/preset/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+        if (r.ok) {
+            toast.msg(`Switching to "${preset.fmtID(id)}" preset...`);
+        } else {
+            toast.msg('Error: ' + await r.text());
+        }
+    },
+    fmtID: function (id) {
+        return String(id).charAt(0).toUpperCase() + String(id).slice(1);
+    },
+};
+
+preset.run();
 keepalive.run();
 version.run();
 exp.run();

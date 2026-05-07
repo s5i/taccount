@@ -7,6 +7,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/s5i/tassist/settings"
 )
 
 type CacheStats struct {
@@ -22,8 +24,10 @@ type CacheStats struct {
 	Paused  bool
 }
 
-func NewCache(tmpDir string) (*Cache, error) {
-	r, err := NewReader(tmpDir)
+func NewCache(tmpDir string, stStorage *settings.Storage) (*Cache, error) {
+	st := stStorage.Get()
+
+	r, err := NewReader(tmpDir, st.ClientWindowTitle)
 	if err != nil {
 		return nil, err
 	}

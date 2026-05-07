@@ -223,3 +223,31 @@ body {
 .ping-value-bad {
     color: #d62a2a;
 }
+
+.preset-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #121a31;
+    border-bottom: 1px solid #16213e;
+    z-index: 20;
+    justify-content: center;
+}
+
+.preset-container:empty {
+    display: none;
+}
+
+.preset-btn {
+    padding: 4px 14px;
+    font-size: .8rem;
+}
+
+.preset-active {
+    background: #175c36;
+}

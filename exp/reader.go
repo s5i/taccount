@@ -19,7 +19,7 @@ import (
 	_ "image/png"
 )
 
-func NewReader(tmpDir string) (*Reader, error) {
+func NewReader(tmpDir string, windowTitle string) (*Reader, error) {
 	baseDir := filepath.Join(tmpDir, "exp")
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
 		return nil, fmt.Errorf("os.MkdirAll(%q) failed: %v", baseDir, err)
@@ -42,7 +42,7 @@ func NewReader(tmpDir string) (*Reader, error) {
 	return &Reader{
 		ocr:       ocr,
 		expKeyImg: eImg,
-		wc:        newWindowCapturer("Tibiantis"),
+		wc:        newWindowCapturer(windowTitle),
 	}, nil
 }
 

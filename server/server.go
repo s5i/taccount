@@ -5,10 +5,13 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"maps"
 	"net"
 	"net/http"
 	"os/exec"
+	"slices"
 	"sync"
 	"time"
 
@@ -16,17 +19,22 @@ import (
 	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
 	"github.com/s5i/tassist/ping"
+	"github.com/s5i/tassist/settings"
+
 	"golang.org/x/sync/errgroup"
 
 	_ "embed"
 )
 
-func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string) (*Server, error) {
+var ErrRestart = fmt.Errorf("server is restarting...")
+
+func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string, stStorage *settings.Storage) (*Server, error) {
 	s := &Server{
 		acc:                  accStorage,
 		exp:                  expCache,
 		pinger:               pinger,
 		version:              version,
+		stStorage:            stStorage,
 		keepalive:            time.Now(),
 		keepaliveCheckPeriod: 2 * time.Second,
 		keepaliveFails:       3,
@@ -52,6 +60,8 @@ func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, vers
 	mux.HandleFunc("/api/exp/unpause", s.handleExpUnpause)
 	mux.HandleFunc("/api/exp/reset", s.handleExpReset)
 	mux.HandleFunc("/api/ping/stats", s.handlePingStats)
+	mux.HandleFunc("/api/preset/switch", s.handlePresetSwitch)
+	mux.HandleFunc("/api/preset/list", s.handlePresetList)
 	s.mux = mux
 
 	return s, nil
@@ -69,6 +79,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
+	s.cancel = cancel
 
 	s.srv = &http.Server{Handler: s.mux}
 
@@ -112,13 +123,20 @@ func (s *Server) Run(ctx context.Context) error {
 		return nil
 	})
 
-	return eg.Wait()
+	err = eg.Wait()
+
+	if s.restart {
+		return ErrRestart
+	}
+
+	return err
 }
 
 type Server struct {
-	acc    *acc.Storage
-	exp    *exp.Cache
-	pinger *ping.Pinger
+	acc       *acc.Storage
+	exp       *exp.Cache
+	pinger    *ping.Pinger
+	stStorage *settings.Storage
 
 	srv *http.Server
 	mux *http.ServeMux
@@ -132,6 +150,8 @@ type Server struct {
 	keepaliveFails       int
 	keepaliveCheckPeriod time.Duration
 	keepaliveMu          sync.Mutex
+
+	restart bool
 }
 
 func (s *Server) handleIndexHTML(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +259,7 @@ func (s *Server) handleAccLoad(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := acc.RegRestore(row.A, row.B, row.C); err != nil {
+	if err := acc.RegRestore(s.stStorage.Get().RegistryPath, row.A, row.B, row.C); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -262,7 +282,7 @@ func (s *Server) handleAccStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, b, c, err := acc.RegSnapshot()
+	a, b, c, err := acc.RegSnapshot(s.stStorage.Get().RegistryPath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -352,13 +372,21 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePingStats(w http.ResponseWriter, r *http.Request) {
 	stats := s.pinger.Stats()
 	ret := struct {
-		RTTMSec             int     `json:"rtt_msec,omitempty"`
-		PacketLoss          float64 `json:"packet_loss"`
-		PacketLossWindowSec int     `json:"packet_loss_window_sec"`
+		RTTMSec             int      `json:"rtt_msec,omitempty"`
+		PacketLoss          float64  `json:"packet_loss"`
+		PacketLossWindowSec int      `json:"packet_loss_window_sec"`
+		ProxyRTTMSec        *int     `json:"proxy_rtt_msec,omitempty"`
+		ProxyPacketLoss     *float64 `json:"proxy_packet_loss,omitempty"`
 	}{
-		RTTMSec:             int(stats.RTT / time.Millisecond),
-		PacketLoss:          stats.PacketLoss,
-		PacketLossWindowSec: int(stats.PacketLossWindow / time.Second),
+		RTTMSec:             int(stats.Main.RTT / time.Millisecond),
+		PacketLoss:          stats.Main.PacketLoss,
+		PacketLossWindowSec: int(stats.Main.PacketLossWindow / time.Second),
+	}
+
+	if stats.Proxy != nil {
+		rtt := int(stats.Proxy.RTT / time.Millisecond)
+		ret.ProxyRTTMSec = &rtt
+		ret.ProxyPacketLoss = &stats.Proxy.PacketLoss
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ret)
@@ -378,6 +406,42 @@ func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(struct {
 		Version string `json:"version"`
 	}{Version: s.version})
+}
+
+func (s *Server) handlePresetSwitch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.stStorage.SwitchPreset(req.ID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
+
+	s.restart = true
+	s.cancel()
+}
+
+func (s *Server) handlePresetList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Active    string   `json:"active"`
+		Available []string `json:"available"`
+	}{
+		Active:    s.stStorage.Preset(),
+		Available: slices.Sorted(maps.Keys(settings.Presets)),
+	})
 }
 
 type entryJSON struct {

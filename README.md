@@ -1,6 +1,6 @@
-# Tibiantis Assistant
+# TAssistant
 
-Tibiantis Assistant is a collection of quality of life tools for Tibiants.
+TAssistant is a collection of quality of life tools for some OT servers (Tibiantis, Relic).
 
 It doesn't automate the gameplay or read the game memory, so it shouldn't get you banned. That said, use it at your own risk.
 
@@ -22,12 +22,13 @@ Alternatively, you're free to audit and compile the code yourself:
 ### Account Switcher
 
 * "Store" stores the current saved credentials.
-  * Note: Tibiantis saves the credentials when you enter the game with a character. Getting to the character list is not enough.
+  * Tibiantis saves the credentials when you enter the game with a character. Getting to the character list is not enough.
 * "Load" restores previously stored credentials.
 * Double-clicking an entry allows you to rename it.
 * Technical details:
+  * TAssistant stores the Base64-encoded registry entries under `%AppData%\TAssistant\accounts.yaml`.
   * Tibiantis uses Windows Registry; the credentials live under `HKEY_CURRENT_USER\SOFTWARE[tab]ibiantis\Credentials`. Yes, they failed to escape the "T" letter.
-  * Tibiantis Assistant stores the Base64-encoded registry entries under `%AppData%\TAssistant\accounts.yaml`.
+  * Relic uses Windows Registry; the credentials live under `HKEY_CURRENT_USER\SOFTWARE\Tibia Relic\Credentials`.
 
 ### Experience Tracker
 
@@ -39,9 +40,9 @@ Alternatively, you're free to audit and compile the code yourself:
 * "Pause"/"Unpause" controls whether the session is paused; while paused, neither experience changes nor time elapsed is counted towards exp/h.
 * "Reset" resets the session.
 * Known issues:
-  * If exp detection is not working despite an active session, try re-focusing the Tibiantis client window (eg. by alt-tabbing into another window and back).
+  * If exp detection is not working despite an active session, try re-focusing the game window (eg. by alt-tabbing into another window and back).
 * Technical details:
-  * TAssist takes a screenshot of a window titled "Tibiantis" every 2 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
+  * TAssistant takes a screenshot of a window matching the OT-specific window title every 2 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
 
 ### Ping
 

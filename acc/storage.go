@@ -8,17 +8,20 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/s5i/tassist/settings"
 	"gopkg.in/yaml.v3"
 )
 
 type Storage struct {
-	file    string
-	entries []*row
+	file      string
+	entries   []*row
+	stStorage *settings.Storage
 }
 
-func New(dir string) (*Storage, error) {
+func New(dir string, stStorage *settings.Storage) (*Storage, error) {
 	s := &Storage{
-		file: filepath.Join(dir, "accounts.yaml"),
+		file:      filepath.Join(dir, "accounts.yaml"),
+		stStorage: stStorage,
 	}
 
 	if err := s.load(); err != nil {
@@ -39,8 +42,12 @@ func (y *Storage) FindRow(id string) (*row, bool, error) {
 }
 
 func (y *Storage) ListRows() ([]*row, error) {
-	rows := make([]*row, len(y.entries))
-	copy(rows, y.entries)
+	var rows []*row
+	for _, e := range y.entries {
+		if y.stStorage.Get().Server == e.Server {
+			rows = append(rows, e)
+		}
+	}
 
 	return rows, nil
 }
@@ -49,7 +56,7 @@ func (y *Storage) AddRow(id, name string, a, b, c []byte) error {
 	rows := make([]*row, len(y.entries))
 	copy(rows, y.entries)
 
-	rows = append(rows, &row{id, name, a, b, c})
+	rows = append(rows, &row{id, y.stStorage.Get().Server, name, a, b, c})
 
 	if err := y.save(rows); err != nil {
 		return err
@@ -105,6 +112,12 @@ func (y *Storage) load() error {
 		return err
 	}
 
+	for _, e := range y.entries {
+		if e.Server == "" {
+			e.Server = settings.Tibiantis
+		}
+	}
+
 	return nil
 }
 
@@ -127,11 +140,12 @@ func (y *Storage) save(entries []*row) error {
 }
 
 type row struct {
-	ID   string      `yaml:"id"`
-	Name string      `yaml:"name"`
-	A    base64Bytes `yaml:"a"`
-	B    base64Bytes `yaml:"b"`
-	C    base64Bytes `yaml:"c"`
+	ID     string      `yaml:"id"`
+	Server string      `yaml:"server"`
+	Name   string      `yaml:"name"`
+	A      base64Bytes `yaml:"a"`
+	B      base64Bytes `yaml:"b"`
+	C      base64Bytes `yaml:"c"`
 }
 
 type base64Bytes []byte

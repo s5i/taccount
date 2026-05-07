@@ -8,10 +8,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// The unescaped tab is intentional.
-const regPath = "SOFTWARE\tibiantis\\Credentials"
-
-func RegSnapshot() (a, b, c []byte, err error) {
+func RegSnapshot(regPath string) (a, b, c []byte, err error) {
 	k, err := registry.OpenKey(registry.CURRENT_USER, regPath, registry.QUERY_VALUE)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("open registry key: %w", err)
@@ -36,7 +33,7 @@ func RegSnapshot() (a, b, c []byte, err error) {
 	return a, b, []byte(cStr), nil
 }
 
-func RegRestore(a, b, c []byte) error {
+func RegRestore(regPath string, a, b, c []byte) error {
 	k, err := registry.OpenKey(registry.CURRENT_USER, regPath, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("open registry key: %w", err)
