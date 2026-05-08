@@ -22,8 +22,11 @@ jobs:
       - name: Fetch dependencies
         run: go get -u github.com/s5i/tassist
 
-      - name: Build
-        run: GOOS=windows GOARCH=amd64 TAG= go build -ldflags "-H=windowsgui -X 'github.com/s5i/goutil/version.External=${{ github.ref_name }}'" .
+      - name: Build TAssist
+        run: GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X 'github.com/s5i/goutil/version.External=${{ github.ref_name }}'" .
+
+      - name: Build Updater
+        run: GOOS=windows GOARCH=amd64 go build -C updater .
 
       - name: Create Release
         id: create_release
@@ -34,7 +37,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
 
-      - name: Upload Release Asset
+      - name: Upload TAssist
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,4 +45,14 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./tassist.exe
           asset_name: tassist.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Updater
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./updater/updater.exe
+          asset_name: updater.exe
           asset_content_type: application/octet-stream

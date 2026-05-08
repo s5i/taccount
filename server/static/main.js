@@ -32,21 +32,21 @@ const version = {
         const version = d.version;
 
         document.getElementById('title').innerText = `TAssistant ${version}`;
-
-        try {
-            if (!version.match(/v\d\.\d\.\d/)) return;
-
-            const resp = await fetch('https://api.github.com/repos/s5i/tassist/releases/latest');
-            if (!resp.ok) return;
-            const d = await resp.json()
-
-            const latest = d.tag_name;
-            const url = d.assets[0].browser_download_url;
-            if (version != latest) {
-                toast.msg(`New version available! Download <a href="${url}" class="link">here</a>.`, -1);
-            }
-        } catch { }
     },
+};
+
+const update = {
+    run: async function () {
+        const resp = await fetch('/api/update/check');
+        if (!resp.ok) return;
+        const d = await resp.json()
+        if (d.available) {
+            toast.msg(`<a onclick="update.exec();" class="link">TAssistant ${d.version} available! Click here to update.</a>`, 60000);
+        }
+    },
+    exec: async function () {
+        fetch('/api/update/execute').then(() => { window.close(); });
+    }
 };
 
 const exp = {
@@ -350,6 +350,7 @@ const preset = {
 preset.run();
 keepalive.run();
 version.run();
+update.run();
 exp.run();
 acc.run();
 ping.run();

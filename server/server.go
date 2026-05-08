@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"sync"
 	"time"
@@ -28,8 +32,9 @@ import (
 
 var ErrRestart = fmt.Errorf("server is restarting...")
 
-func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string, stStorage *settings.Storage) (*Server, error) {
+func New(tmpDir string, accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string, stStorage *settings.Storage) (*Server, error) {
 	s := &Server{
+		tmpDir:               tmpDir,
 		acc:                  accStorage,
 		exp:                  expCache,
 		pinger:               pinger,
@@ -62,6 +67,8 @@ func New(accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, vers
 	mux.HandleFunc("/api/ping/stats", s.handlePingStats)
 	mux.HandleFunc("/api/preset/switch", s.handlePresetSwitch)
 	mux.HandleFunc("/api/preset/list", s.handlePresetList)
+	mux.HandleFunc("/api/update/check", s.handleUpdateCheck)
+	mux.HandleFunc("/api/update/execute", s.handleUpdateExecute)
 	s.mux = mux
 
 	return s, nil
@@ -133,6 +140,7 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 type Server struct {
+	tmpDir    string
 	acc       *acc.Storage
 	exp       *exp.Cache
 	pinger    *ping.Pinger
@@ -150,6 +158,11 @@ type Server struct {
 	keepaliveFails       int
 	keepaliveCheckPeriod time.Duration
 	keepaliveMu          sync.Mutex
+
+	updateReady   bool
+	updaterPath   string
+	updaterSource string
+	updateMu      sync.Mutex
 
 	restart bool
 }
@@ -442,6 +455,109 @@ func (s *Server) handlePresetList(w http.ResponseWriter, r *http.Request) {
 		Active:    s.stStorage.Preset(),
 		Available: slices.Sorted(maps.Keys(settings.Presets)),
 	})
+}
+
+func (s *Server) handleUpdateExecute(w http.ResponseWriter, r *http.Request) {
+	s.updateMu.Lock()
+	defer s.updateMu.Unlock()
+
+	if !s.updateReady {
+		http.Error(w, "Update is not ready.", http.StatusNotFound)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{}"))
+
+	go exec.Command("cmd", "/C", "start", s.updaterPath, os.Args[0], s.updaterSource).Run()
+	time.Sleep(3 * time.Second)
+
+	s.cancel()
+}
+
+func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	ret := struct {
+		Available bool   `json:"available"`
+		Version   string `json:"version,omitempty"`
+	}{}
+
+	w.Header().Set("Content-Type", "application/json")
+	defer func() { json.NewEncoder(w).Encode(ret) }()
+
+	matched, err := regexp.MatchString(`^v\d+\.\d+\.\d+$`, s.version)
+	if err != nil || !matched {
+		return
+	}
+
+	resp, err := http.Get("https://api.github.com/repos/s5i/tassist/releases/latest")
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	var releaseData struct {
+		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&releaseData); err != nil {
+		return
+	}
+
+	if releaseData.TagName == s.version {
+		return
+	}
+
+	var tassistURL, updaterURL string
+	for _, asset := range releaseData.Assets {
+		switch asset.Name {
+		case "tassist.exe":
+			tassistURL = asset.BrowserDownloadURL
+		case "updater.exe":
+			updaterURL = asset.BrowserDownloadURL
+		}
+	}
+	if tassistURL == "" || updaterURL == "" {
+		return
+	}
+
+	sourcePath := filepath.Join(s.tmpDir, fmt.Sprintf("tassist_%s.exe", releaseData.TagName))
+	if err := downloadFile(sourcePath, tassistURL); err != nil {
+		return
+	}
+
+	updaterPath := filepath.Join(s.tmpDir, "updater.exe")
+	if err := downloadFile(updaterPath, updaterURL); err != nil {
+		return
+	}
+
+	ret.Available = true
+	ret.Version = releaseData.TagName
+
+	s.updateMu.Lock()
+	defer s.updateMu.Unlock()
+
+	s.updateReady = true
+	s.updaterPath = updaterPath
+	s.updaterSource = sourcePath
+}
+
+func downloadFile(path string, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	return err
 }
 
 type entryJSON struct {
