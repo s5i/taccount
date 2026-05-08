@@ -48,8 +48,12 @@ Alternatively, you're free to audit and compile the code yourself:
 
 * "RTT" displays your round-trip-time (a.k.a. ping) to Ancestra.
 * "Packet loss" displays the percentage of ping packets lost within the last 20 seconds.
+* Secondary values in parentheses, if present, indicate the statistics measured against proxies.
 * Technical details:
   * Ancestra IP is assumed to be `51.89.155.163`.
+  * Concordia IP is assumed to be `57.129.145.195`.
+  * Relic IP is assumed to be `104.156.244.186`, with extra proxies at `216.238.121.95`, `45.32.218.87`, `95.179.154.226`.
+
 ### Screenshots
 
 ![Local webpage view](https://raw.github.com/s5i/tassist/main/example.png)

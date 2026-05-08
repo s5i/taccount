@@ -31,7 +31,7 @@ const version = {
         const d = await resp.json()
         const version = d.version;
 
-        document.getElementById('title').innerText = `Tibiantis Assistant ${version}`;
+        document.getElementById('title').innerText = `TAssistant ${version}`;
 
         try {
             if (!version.match(/v\d\.\d\.\d/)) return;
