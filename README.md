@@ -44,11 +44,12 @@ Alternatively, you're free to audit and compile the code yourself:
 * Technical details:
   * TAssistant takes a screenshot of a window matching the OT-specific window title every 2 seconds, searches for "Experience" on the right panel, and then runs OCR on the line.
 
-### Ping
+### World
 
-* "RTT" displays your round-trip-time (a.k.a. ping) to Ancestra.
+* "Online" displays the number of online players.
+* "Ping" displays your round-trip-time to the chosen world.
 * "Packet loss" displays the percentage of ping packets lost within the last 20 seconds.
-* Secondary values in parentheses, if present, indicate the statistics measured against proxies.
+  * This is averaged across all IPs (main and proxies) for a given world.
 * Technical details:
   * Ancestra IP is assumed to be `51.89.155.163`.
   * Concordia IP is assumed to be `57.129.145.195`.

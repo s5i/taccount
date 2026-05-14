@@ -68,9 +68,10 @@ func (wh *windowCapturer) capture() (*image.RGBA, error) {
 		return nil, fmt.Errorf("failed to get %q window rect", wh.title)
 	}
 
-	img, err := screenshot.CaptureRect(image.Rect(int(r.l), int(r.t), int(r.r), int(r.b)))
+	rect := image.Rect(int(r.l), int(r.t), int(r.r), int(r.b))
+	img, err := screenshot.CaptureRect(rect)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("screenshot.CaptureRect(%v) failed: %v", rect, err)
 	}
 
 	return img, nil

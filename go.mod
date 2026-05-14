@@ -9,6 +9,7 @@ require (
 	github.com/prometheus-community/pro-bing v0.8.0
 	github.com/s5i/goutil/version v0.0.0
 	github.com/winlabs/gowin32 v0.0.0-20260308155911-6a6dc53430f0
+	golang.org/x/net v0.53.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -19,5 +20,4 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
-	golang.org/x/net v0.53.0 // indirect
 )

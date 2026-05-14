@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
+	"github.com/s5i/tassist/online"
 	"github.com/s5i/tassist/ping"
 	"github.com/s5i/tassist/settings"
 
@@ -32,12 +33,13 @@ import (
 
 var ErrRestart = fmt.Errorf("server is restarting...")
 
-func New(tmpDir string, accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, version string, stStorage *settings.Storage) (*Server, error) {
+func New(tmpDir string, accStorage *acc.Storage, expCache *exp.Cache, pinger *ping.Pinger, online *online.Online, version string, stStorage *settings.Storage) (*Server, error) {
 	s := &Server{
 		tmpDir:               tmpDir,
 		acc:                  accStorage,
 		exp:                  expCache,
 		pinger:               pinger,
+		online:               online,
 		version:              version,
 		stStorage:            stStorage,
 		keepalive:            time.Now(),
@@ -64,7 +66,8 @@ func New(tmpDir string, accStorage *acc.Storage, expCache *exp.Cache, pinger *pi
 	mux.HandleFunc("/api/exp/pause", s.handleExpPause)
 	mux.HandleFunc("/api/exp/unpause", s.handleExpUnpause)
 	mux.HandleFunc("/api/exp/reset", s.handleExpReset)
-	mux.HandleFunc("/api/ping/stats", s.handlePingStats)
+	mux.HandleFunc("/api/world/ping", s.handleWorldPing)
+	mux.HandleFunc("/api/world/online", s.handleWorldOnline)
 	mux.HandleFunc("/api/preset/switch", s.handlePresetSwitch)
 	mux.HandleFunc("/api/preset/list", s.handlePresetList)
 	mux.HandleFunc("/api/update/check", s.handleUpdateCheck)
@@ -144,6 +147,7 @@ type Server struct {
 	acc       *acc.Storage
 	exp       *exp.Cache
 	pinger    *ping.Pinger
+	online    *online.Online
 	stStorage *settings.Storage
 
 	srv *http.Server
@@ -382,25 +386,32 @@ func (s *Server) handleExpStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ret)
 }
 
-func (s *Server) handlePingStats(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleWorldPing(w http.ResponseWriter, r *http.Request) {
 	stats := s.pinger.Stats()
 	ret := struct {
-		RTTMSec             int      `json:"rtt_msec,omitempty"`
-		PacketLoss          float64  `json:"packet_loss"`
-		PacketLossWindowSec int      `json:"packet_loss_window_sec"`
-		ProxyRTTMSec        *int     `json:"proxy_rtt_msec,omitempty"`
-		ProxyPacketLoss     *float64 `json:"proxy_packet_loss,omitempty"`
+		OK         bool    `json:"ok"`
+		RTTMSec    int     `json:"rtt_msec"`
+		PacketLoss float64 `json:"packet_loss"`
 	}{
-		RTTMSec:             int(stats.Main.RTT / time.Millisecond),
-		PacketLoss:          stats.Main.PacketLoss,
-		PacketLossWindowSec: int(stats.Main.PacketLossWindow / time.Second),
+		OK:         stats.OK,
+		RTTMSec:    int(stats.RTT / time.Millisecond),
+		PacketLoss: stats.PacketLoss,
 	}
 
-	if stats.Proxy != nil {
-		rtt := int(stats.Proxy.RTT / time.Millisecond)
-		ret.ProxyRTTMSec = &rtt
-		ret.ProxyPacketLoss = &stats.Proxy.PacketLoss
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ret)
+}
+
+func (s *Server) handleWorldOnline(w http.ResponseWriter, r *http.Request) {
+	online, ok := s.online.Get()
+	ret := struct {
+		OK     bool `json:"ok"`
+		Online int  `json:"online"`
+	}{
+		OK:     ok,
+		Online: online,
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ret)
 }

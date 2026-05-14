@@ -2,7 +2,6 @@ package ping
 
 import (
 	"context"
-	"slices"
 	"sync"
 	"time"
 
@@ -68,26 +67,19 @@ func (m *Pinger) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (m *Pinger) Stats() MultiStats {
-	ret := MultiStats{
-		Main: m.pinger.Stats(),
-	}
+func (m *Pinger) Stats() Stats {
+	ret := m.pinger.Stats()
 
-	if len(m.proxyPingers) > 0 {
-		var proxy []Stats
-		for _, p := range m.proxyPingers {
-			proxy = append(proxy, p.Stats())
+	plNum := ret.PacketLoss
+	plDen := 1
+	for _, pp := range m.proxyPingers {
+		if p := pp.Stats(); p.OK {
+			plNum += p.PacketLoss
+			plDen++
 		}
-
-		slices.SortFunc(proxy, func(a, b Stats) int {
-			if a.PacketLoss == b.PacketLoss {
-				return int(a.RTT - b.RTT)
-			}
-			return int(1000 * (a.PacketLoss - b.PacketLoss))
-		})
-		ret.Proxy = &proxy[0]
 	}
 
+	ret.PacketLoss = plNum / float64(plDen)
 	return ret
 }
 
@@ -101,16 +93,10 @@ type pinger struct {
 	mu     sync.Mutex
 }
 
-type MultiStats struct {
-	Main  Stats
-	Proxy *Stats
-}
-
 type Stats struct {
-	OK               bool
-	RTT              time.Duration
-	PacketLoss       float64
-	PacketLossWindow time.Duration
+	OK         bool
+	RTT        time.Duration
+	PacketLoss float64
 }
 
 func (p *pinger) Run(ctx context.Context) error {
@@ -122,10 +108,9 @@ func (p *pinger) Stats() Stats {
 	defer p.mu.Unlock()
 
 	ret := Stats{
-		OK:               p.ok,
-		RTT:              p.rtt,
-		PacketLoss:       float64(p.nFails) / float64(len(p.wait)-1),
-		PacketLossWindow: (p.pinger.Interval * time.Duration(len(p.wait))).Truncate(time.Second),
+		OK:         p.ok,
+		RTT:        p.rtt,
+		PacketLoss: float64(p.nFails) / float64(len(p.wait)-1),
 	}
 
 	return ret

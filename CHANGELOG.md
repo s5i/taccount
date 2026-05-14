@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.21 — 2026-05-14
+
+- Add online counter.
+- Make ping stats easier to read.
+- Lower the threshold for "Experience" label detection.
+
 ## v0.0.20 — 2026-05-08
 
 - Add the CHANGELOG link to updater pop-up.

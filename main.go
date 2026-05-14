@@ -14,6 +14,7 @@ import (
 	"github.com/s5i/goutil/version"
 	"github.com/s5i/tassist/acc"
 	"github.com/s5i/tassist/exp"
+	"github.com/s5i/tassist/online"
 	"github.com/s5i/tassist/ping"
 	"github.com/s5i/tassist/server"
 	"github.com/s5i/tassist/settings"
@@ -100,7 +101,13 @@ func mainErr() (retErr error) {
 		return err
 	}
 
-	srv, err := server.New(*tmpDir, accStorage, expCache, pinger, ver, stStorage)
+	online, err := online.New(stStorage)
+	if err != nil {
+		log.Printf("online.New() failed: %v", err)
+		return err
+	}
+
+	srv, err := server.New(*tmpDir, accStorage, expCache, pinger, online, ver, stStorage)
 	if err != nil {
 		log.Printf("server.New() failed: %v", err)
 		return err
@@ -115,6 +122,11 @@ func mainErr() (retErr error) {
 	eg.Go(func() error {
 		defer logPanic()
 		return pinger.Run(ctx)
+	})
+
+	eg.Go(func() error {
+		defer logPanic()
+		return online.Run(ctx)
 	})
 
 	eg.Go(func() error {

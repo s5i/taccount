@@ -257,54 +257,76 @@ const acc = {
     },
 };
 
-const ping = {
+const world = {
     run: function () {
         setInterval(() => {
-            ping.reload();
+            world.reloadPing();
         }, 1000);
 
-        ping.reload();
+        setInterval(() => {
+            world.reloadOnline();
+        }, 60000);
+
+        world.reloadPing();
+        world.reloadOnline();
+
     },
-    reload: async function () {
-        const r = await fetch('/api/ping/stats');
+    reloadPing: async function () {
+        const r = await fetch('/api/world/ping');
         if (!r.ok) return;
         const d = await r.json();
 
-        d.packet_loss = parseFloat(d.packet_loss);
-        document.getElementById('ping-val-rtt').textContent = ping.fmtMsec(d.rtt_msec, d.proxy_rtt_msec);
-        document.getElementById('ping-val-packetloss').textContent = ping.fmtPacketLoss(d.packet_loss, d.proxy_packet_loss);
-        document.getElementById('ping-val-packetloss-window').textContent = ping.fmtPacketLossWindow(d.packet_loss_window_sec);
+        const rttEl = document.getElementById('world-val-rtt');
+        const packetLossEl = document.getElementById('world-val-packetloss');
 
-        if (d.packet_loss > 0.1) {
-            document.getElementById('ping-val-packetloss').classList.add('ping-value-bad');
-            document.getElementById('ping-val-packetloss').classList.remove('ping-value-meh');
-        } else if (d.packet_loss > 0.05) {
-            document.getElementById('ping-val-packetloss').classList.add('ping-value-meh');
-            document.getElementById('ping-val-packetloss').classList.remove('ping-value-bad');
+        const rtt = parseInt(d.rtt_msec);
+        rttEl.textContent = world.fmtRTT(rtt, d.ok);
+        rttEl.classList.remove('ping-value-ok', 'ping-value-meh', 'ping-value-bad');
+        if (rtt > 200) {
+            rttEl.classList.add('ping-value-bad');
+        } else if (rtt > 100) {
+            rttEl.classList.add('ping-value-meh');
         } else {
-            document.getElementById('ping-val-packetloss').classList.remove('ping-value-bad', 'ping-value-meh');
+            rttEl.classList.add('ping-value-ok');
+        }
+
+        const packetLoss = parseFloat(d.packet_loss);
+        packetLossEl.textContent = world.fmtPacketLoss(packetLoss, d.ok);
+        packetLossEl.classList.remove('ping-value-ok', 'ping-value-meh', 'ping-value-bad');
+        if (packetLoss > 0.1) {
+            packetLossEl.classList.add('ping-value-bad');
+        } else if (packetLoss > 0.05) {
+            packetLossEl.classList.add('ping-value-meh');
+        } else {
+            packetLossEl.classList.add('ping-value-ok');
         }
     },
-    fmtPacketLossWindow: function (x) {
-        if (!Number.isInteger(x)) {
-            return '';
-        }
-        return `(last ${x} sec)`;
+    reloadOnline: async function () {
+        const r = await fetch('/api/world/online');
+        if (!r.ok) return;
+        const d = await r.json();
+
+        const onlineEl = document.getElementById('world-val-online');
+
+        onlineEl.textContent = world.fmtOnline(d.online, d.ok);
     },
-    fmtMsec: function (main, proxy) {
-        if (!Number.isInteger(main)) {
+    fmtOnline: function (x, ok) {
+        if (!ok || !Number.isInteger(x)) {
             return '-';
         }
-        if (!Number.isInteger(proxy)) {
-            return `${main}ms`;
-        }
-        return `${main}ms (${proxy}ms)`;
+        return x;
     },
-    fmtPacketLoss: function (main, proxy) {
-        if (proxy === undefined) {
-            return `${(100.0 * main).toPrecision(1)}%`;
+    fmtRTT: function (x, ok) {
+        if (!ok || !Number.isInteger(x)) {
+            return '-';
         }
-        return `${(100.0 * main).toPrecision(1)}% (${(100.0 * proxy).toPrecision(1)}%)`;
+        return `${x}ms`;
+    },
+    fmtPacketLoss: function (x, ok) {
+        if (!ok || isNaN(x)) {
+            return '-';
+        }
+        return `${(100.0 * x).toPrecision(1)}%`;
     },
 };
 
@@ -353,4 +375,4 @@ version.run();
 update.run();
 exp.run();
 acc.run();
-ping.run();
+world.run();
