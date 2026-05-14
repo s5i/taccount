@@ -41,7 +41,7 @@ const update = {
         if (!resp.ok) return;
         const d = await resp.json()
         if (d.available) {
-            toast.msg(`TAssistant ${d.version} available (see <a href="https://github.com/s5i/tassist/blob/main/README.md" target="_blank">changelog</a>). Click <a onclick="update.exec();" class="link">here</a> to update.`, 60000);
+            toast.msg(`TAssistant ${d.version} available (see <a href="https://github.com/s5i/tassist/blob/main/CHANGELOG.md" target="_blank" class="link">changelog</a>). Click <a onclick="update.exec();" class="link">here</a> to update.`, 60000);
         }
     },
     exec: async function () {

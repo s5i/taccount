@@ -62,6 +62,7 @@ body {
 
 .link {
     color: #e0e0e0;
+    text-decoration: underline;
 }
 
 .btn {
